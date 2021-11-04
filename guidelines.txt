@@ -21,5 +21,6 @@ Much of what you do in work is to help the business and it's not always to solve
 * Build and tests must run *fast*. We want fast feedback and spend our limited time improving the game
 * Stick to c mostly using c++ for small stuff.
 * No Over engineering. Definitely no OOP (private and stuff). Waiting a while even before splitting to functions.
+* Be specific, not generic. Make a game engine specific to our games. Solve problems we have, not all the problems in the world.
 
 
