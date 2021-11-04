@@ -1,7 +1,5 @@
 #include "glfw_wrapper.hpp"
-
-#define STBI_NO_DDS 1
-#include <SOIL/SOIL.h>
+#include "read_images.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -37,16 +35,6 @@ struct KeyState {
 
   bool is_pressed() const { return s == State::KeyPressed; }
   bool is_down() const { return s == State::KeyPressed || s == State::KeyDown; }
-};
-struct Image {
-  int width;
-  int height;
-  unsigned char *bytes;
-  Image(const char *name) {
-    bytes = SOIL_load_image(name, &width, &height, 0, SOIL_LOAD_RGB);
-  }
-
-  ~Image() { SOIL_free_image_data(bytes); }
 };
 
 struct Shader {
@@ -220,20 +208,28 @@ void render(const std::string &vertex_source,
     std::array<GLuint, 2> textures;
     glGenTextures(2, textures.data());
 
-    const std::array<const char *, 2> im_names{"../oliver.jpg",
-                                               "../oliver2.jpg"};
-
     const std::array<const char *, 2> shader_pnames{"tex1", "tex2"};
 
     const std::array<GLenum, 2> tex_enums{GL_TEXTURE0, GL_TEXTURE1};
 
-    for (int i = 0; i < std::size(im_names); i++) {
+    // clang-format off
+    unsigned char image1[12] = {
+	    0, 0, 0,      0, 255, 0,
+	    255, 0, 0,    0, 0, 0};
+    unsigned char image2[12] = {
+	    0, 255, 255,      255, 255, 0,
+	    255, 0, 255,    255, 0, 0};
+    // clang-format on
+
+    unsigned char *images[2] = {image1, image2};
+
+    for (int i = 0; i < 2; i++) {
       glActiveTexture(tex_enums[i]);
+
       glBindTexture(GL_TEXTURE_2D, textures[i]);
       {
-        Image im(im_names[i]);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, im.width, im.height, 0, GL_RGB,
-                     GL_UNSIGNED_BYTE, im.bytes);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB,
+                     GL_UNSIGNED_BYTE, images[i]);
       }
 
       glGenerateMipmap(GL_TEXTURE_2D);

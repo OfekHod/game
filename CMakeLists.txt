@@ -2,12 +2,14 @@ cmake_minimum_required(VERSION 3.10)
 
 project(opengl_app)
 
-add_subdirectory(SOIL)
 
 add_executable(app main.cpp)
 
 target_compile_features(app PRIVATE cxx_std_17)
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+find_package(PNG REQUIRED)
+include_directories(${PNG_INCLUDE_DIR})
 
 find_package(glm REQUIRED)
 
@@ -20,4 +22,4 @@ pkg_search_module(GLFW REQUIRED glfw3)
 target_include_directories(app PRIVATE ${GLFW_INCLUDE_DIRS})
 
 
-target_link_libraries(app OpenGL::OpenGL GLEW::GLEW SOIL glm::glm ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(app OpenGL::OpenGL GLEW::GLEW ${PNG_LIBRARY} glm::glm ${GLFW_STATIC_LIBRARIES})
