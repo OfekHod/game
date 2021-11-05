@@ -7,5 +7,18 @@ Load OpenGL though glfw and use fragment/vertex shaders.
 # Dependencies
 
 * glfw - Handles opening a window and getting input, we will leave that for now
-* SOIL - Read an image. We will replace with libpng
-* glm - A math library for OpenGL. Will will get rid of it
+* glm - A math library for OpenGL. # TODO: get rid of it
+
+# Build and run (hopefully :))
+```
+mkdir build
+cd build
+# TODO: Find out setup for windows
+cmake .. 
+```
+
+And to test that it works
+```
+cd build
+./app ../vertex.shader ../fragment.shader
+```

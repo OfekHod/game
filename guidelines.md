@@ -24,3 +24,4 @@ Much of what you do in work is to help the business and it's not always to solve
 * Be specific, not generic. Make a game engine specific to our games. Solve problems we have, not all the problems in the world.
 * Use plain text files with a goal-specific format as much as possible
 * Data Driven. When we code we do it adjacent to *real* data 
+* Don't be afraid of rewrites. After you write something once you know it better, if we have a better design it's a good idea to rewrite
