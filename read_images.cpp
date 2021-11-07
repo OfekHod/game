@@ -8,7 +8,8 @@ http://www.libpng.org/pub/png/libpng-1.2.5-manual.html
 #include <stdlib.h>
 #include <string.h>
 
-void read_png_file_(PngImage *img, char *file_name, FILE *fp) {
+void
+read_png_file_(PngImage *img, char *file_name, FILE *fp) {
 
   // Setup
   img->read_error = false;
@@ -73,7 +74,8 @@ void read_png_file_(PngImage *img, char *file_name, FILE *fp) {
   png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
 }
 
-PngImage read_png_file(char *file_name) {
+PngImage
+read_png_file(char *file_name) {
   PngImage img;
 
   FILE *fp = fopen(file_name, "rb");
@@ -89,7 +91,8 @@ PngImage read_png_file(char *file_name) {
   return img;
 }
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[]) {
   if (argc < 3) {
     fprintf(stderr, "Usage %s <input> <output>\n", argv[1], argv[2]);
     exit(0);

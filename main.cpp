@@ -20,7 +20,9 @@
 struct KeyState {
   enum class State { KeyUp, KeyDown, KeyPressed };
   State s = State::KeyUp;
-  State update(int curr_state) {
+
+  State
+  update(int curr_state) {
     s = [s = this->s, curr_state] {
       if (curr_state != GLFW_PRESS) {
         return State::KeyUp;
@@ -33,8 +35,14 @@ struct KeyState {
     return s;
   }
 
-  bool is_pressed() const { return s == State::KeyPressed; }
-  bool is_down() const { return s == State::KeyPressed || s == State::KeyDown; }
+  bool
+  is_pressed() const {
+    return s == State::KeyPressed;
+  }
+  bool
+  is_down() const {
+    return s == State::KeyPressed || s == State::KeyDown;
+  }
 };
 
 struct Shader {
@@ -58,12 +66,14 @@ struct Shader {
 };
 
 template <typename T, size_t N>
-constexpr auto value_size(const std::array<T, N> &arr) {
+constexpr auto
+value_size(const std::array<T, N> &arr) {
   return std::tuple_size<T>::value;
 }
 
 template <typename T, size_t N>
-constexpr auto sizeof_value(const std::array<T, N> &arr) {
+constexpr auto
+sizeof_value(const std::array<T, N> &arr) {
   return sizeof(T);
 }
 
@@ -75,8 +85,8 @@ template <size_t N_VERTS> struct VertsContent {
 constexpr int screen_width = 1000;
 constexpr int screen_height = 1000;
 
-void render(const std::string &vertex_source,
-            const std::string &fragment_source) {
+void
+render(const std::string &vertex_source, const std::string &fragment_source) {
 
   GlfwContext ctx(screen_width, screen_height);
 
@@ -310,7 +320,8 @@ void render(const std::string &vertex_source,
   }();
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv) {
   if (argc < 3) {
     std::cerr << "Usage: " << argv[0] << " <vertex shader>"
               << " <fragment shader>\n";
