@@ -16,7 +16,7 @@ Much of what you do in work is to help the business and it's not always to solve
 
 * Focus on the data and the computer first. Code second.
 * Absolutely no Frameworks.
-* Libraries and other dependencies are trouble. Each *Library* will be carefully evaluated. Use as less libraries as possible. (e.g. use libpng instead of SOIL)
+* Libraries and other dependencies are trouble. Each *Library* will be carefully evaluated. When absolutely necessary to use a library, use the more bare-bones version possible. (e.g. use libpng instead of SOIL)
 * Implement everything as simple as possible. Simple is in terms of understanding what happens in the computer. (Give image example)
 * Build and tests must run *fast*. We want fast feedback and spend our limited time improving the game
 * Stick to c mostly using c++ for small stuff.
@@ -25,3 +25,7 @@ Much of what you do in work is to help the business and it's not always to solve
 * Use plain text files with a goal-specific format as much as possible
 * Data Driven. When we code we do it adjacent to *real* data 
 * Don't be afraid of rewrites. After you write something once you know it better, if we have a better design it's a good idea to rewrite
+
+## How to handle errors?
+
+* Never exceptions, exception model makes code way more complicated then it should be. Specifically, once you introduce exceptions, you can never know if any function in the program might throw, so you don't know what runs when.
