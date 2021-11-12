@@ -1,9 +1,13 @@
 #include "glfw_wrapper.hpp"
+#include "math.hpp"
 #include "read_images.hpp"
+
+#include <cmath>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include <algorithm>
 #include <array>
@@ -284,15 +288,13 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
       [uniTrans, time, &space, &sign] {
         const float scale = 0.5;
 
-        glm::mat4 scale_mat =
-            glm::scale(glm::mat4(1.0F), glm::vec3(scale, scale, scale));
-        glm::mat4 trans = glm::rotate(scale_mat, time * glm::radians(50.0F),
-                                      glm::vec3(1.0F, 0.0F, 0.0F));
-        trans = trans * glm::rotate(glm::mat4(1.0F),
-                                    0.5F * (1.0F + sign) * glm::radians(180.0F),
-                                    glm::vec3(1.0F, 0.0F, 0.0F));
-
-        glUniformMatrix4fv(uniTrans, 1, GL_FALSE, glm::value_ptr(trans));
+        mat4f scale_mat = diagonal(scale, scale, scale, 1);
+        mat4f rot =
+            rotation(vec3f{1.0F, 0.0F, 0.0F}, time * 50.F * pi / 180.0F);
+        mat4f trans = rot * scale_mat;
+        trans = trans * rotation(vec3f{1.0F, 0.0F, 0.0F},
+                                   0.5F * (1.0F + sign) * (180.0F * pi / 180));
+        glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
       }();
       [time, shader_program, uniView, uniProj] {
         // clang-format off
@@ -302,6 +304,8 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
   		    glm::vec3(0.0F, 0.0F, 1.0F)
   		    );
         // clang-format on
+        std::cout << "view:\n";
+	std::cout << glm::to_string(view) << "\n=====\n";
         glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 
         glm::mat4 proj =
