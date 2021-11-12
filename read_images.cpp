@@ -90,13 +90,3 @@ read_png_file(char *file_name) {
   fclose(fp);
   return img;
 }
-
-int
-main(int argc, char *argv[]) {
-  if (argc < 3) {
-    fprintf(stderr, "Usage %s <input> <output>\n", argv[1], argv[2]);
-    exit(0);
-  }
-  PngImage img = read_png_file(argv[1]);
-  return 0;
-}
