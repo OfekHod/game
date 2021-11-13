@@ -16,33 +16,27 @@
 #include <thread>
 #include <utility>
 
-struct KeyState {
-  enum class State { KeyUp, KeyDown, KeyPressed };
-  State s = State::KeyUp;
+enum class KeyState { KeyUp, KeyDown, KeyPressed };
 
-  State
-  update(int curr_state) {
-    s = [s = this->s, curr_state] {
-      if (curr_state != GLFW_PRESS) {
-        return State::KeyUp;
-      } else if (s == State::KeyUp) {
-        return State::KeyPressed;
-      } else {
-        return State::KeyDown;
-      }
-    }();
-    return s;
-  }
+KeyState
+update_kstate(KeyState s, int curr_state) {
+    if (curr_state != GLFW_PRESS) {
+      return KeyState::KeyUp;
+    } else if (s == KeyState::KeyUp) {
+      return KeyState::KeyPressed;
+    } else {
+      return KeyState::KeyDown;
+    }
+}
 
-  bool
-  is_pressed() const {
-    return s == State::KeyPressed;
-  }
-  bool
-  is_down() const {
-    return s == State::KeyPressed || s == State::KeyDown;
-  }
-};
+bool
+is_pressed(KeyState s) {
+  return s == KeyState::KeyPressed;
+}
+bool
+is_down(KeyState s) {
+  return s == KeyState::KeyPressed || s == KeyState::KeyDown;
+}
 
 struct Shader {
   GLuint gl_ptr;
@@ -264,7 +258,7 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
 
     const auto t_start = std::chrono::high_resolution_clock::now();
 
-    KeyState space;
+    KeyState space = KeyState::KeyUp;
     const auto window = ctx.window.ptr;
     float sign = 1;
     while (!glfwWindowShouldClose(window)) {
@@ -274,8 +268,8 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
         exit(0);
       };
 
-      space.update(glfwGetKey(window, GLFW_KEY_SPACE));
-      if (space.is_pressed()) {
+      space = update_kstate(space, glfwGetKey(window, GLFW_KEY_SPACE));
+      if (is_pressed(space)) {
         sign *= -1;
       }
 
