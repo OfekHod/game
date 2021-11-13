@@ -102,12 +102,12 @@ cross(vec3f v, vec3f u) {
 mat4f
 operator*(const mat4f &m1, const mat4f &m2) {
   mat4f res;
-  for (int res_row = 0; res_row < 4; ++res_row) {
-    for (int res_col = 0; res_col < 4; ++res_col) {
-      float *pos = &res.elements[res_row * 4 + res_col];
+  for (int res_col = 0; res_col < 4; ++res_col) {
+    for (int res_row = 0; res_row < 4; ++res_row) {
+      float *pos = &res.elements[res_col * 4 + res_row];
       *pos = 0;
       for (int a = 0; a < 4; ++a) {
-        *pos += m1.elements[res_row * 4 + a] * m2.elements[a * 4 + res_col];
+        *pos += m1.elements[res_col * 4 + a] * m2.elements[a * 4 + res_row];
       }
     }
   }
