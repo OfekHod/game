@@ -25,3 +25,6 @@ constexpr float pi = 3.14159265358979323846F;
 
 mat4f
 look_at(vec3f eye, vec3f center, vec3f up);
+
+mat4f
+perspective(float fov, float aspect, float near, float far);

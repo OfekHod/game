@@ -40,11 +40,12 @@ diagonal(float a, float b, float c, float d) {
 
 void
 print(mat4f m) {
-  for (int col = 0; col < 4; ++col) {
-    for (int row = 0; row < 3; ++row) {
+  for (int row = 0; row < 4; ++row) {
+    int col = 0;
+    for (col = 0; col < 3; ++col) {
       printf("%f\t", m.elements[col * 4 + row]);
     }
-    printf("%f\n", m.elements[col * 4 + 3]);
+    printf("%f\n", m.elements[col * 4 + row]);
   }
 }
 
@@ -114,7 +115,6 @@ operator*(const mat4f &m1, const mat4f &m2) {
   return res;
 }
 
-// https://www.khronos.org/opengl/wiki/GluLookAt_code
 mat4f
 look_at(vec3f eye, vec3f center, vec3f up) {
   vec3f forward = normalized(center - eye);
@@ -133,5 +133,19 @@ look_at(vec3f eye, vec3f center, vec3f up) {
     t_x   , t_y , t_z       , 1.0F
   }};
 
+  // clang-format on
+}
+
+mat4f
+perspective(float fov, float aspect, float near, float far) {
+  float tan_half = tanf(fov / 2.0F);
+
+  // clang-format off
+  return mat4f{{
+1 / (aspect * tan_half), 0           , 0                               , 0,
+0                      , 1 / tan_half, 0                               , 0,
+0                      , 0           , -(far + near) / (far - near)    , -1,
+0                      , 0           , -(2 * far * near) / (far - near), 0
+  }};
   // clang-format on
 }

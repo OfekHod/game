@@ -4,11 +4,6 @@
 
 #include <cmath>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/gtx/string_cast.hpp>
-
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -307,10 +302,10 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
 
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
-        glm::mat4 proj =
-            glm::perspective(glm::radians(45.0F),
-                             (float)screen_width / screen_height, 1.0F, 10.0F);
-        glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+	mat4f proj = perspective(45.0F * pi / 180.0F, 
+			float(screen_width) / screen_height, 1.0f, 10.F);
+
+        glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       }();
 
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
