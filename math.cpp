@@ -58,10 +58,10 @@ rotation(vec3f u, float theta) {
   float z = u.z;
   // clang-format off
   return mat4f{{
-	  cos_t + x * x * m_cos_t,     y * x * m_cos_t + z * sin_t, z * x * m_cos_t - y * sin_t, 0,
-	  x * y * m_cos_t - z * sin_t, cos_t + y * y * m_cos_t,     z * y * m_cos_t + x * sin_t     , 0,
-	  x * z * m_cos_t + y * sin_t, y * z * m_cos_t - x * sin_t, cos_t + z * z * m_cos_t,     0,
-	  0, 0, 0, 1
+    cos_t + x * x * m_cos_t    , y * x * m_cos_t + z * sin_t, z * x * m_cos_t - y * sin_t, 0.0F,
+    x * y * m_cos_t - z * sin_t, cos_t + y * y * m_cos_t    , z * y * m_cos_t + x * sin_t, 0.0F,
+    x * z * m_cos_t + y * sin_t, y * z * m_cos_t - x * sin_t, cos_t + z * z * m_cos_t    , 0.0F,
+    0.0F                       , 0.0F                       , 0.0F                       , 1.0F
   }};
   // clang-format on
 }
@@ -121,12 +121,16 @@ look_at(vec3f eye, vec3f center, vec3f up) {
   vec3f side = normalized(cross(forward, up));
   up = cross(side, forward);
 
+  float t_x = -dot(eye, side);
+  float t_y = -dot(eye, up);
+  float t_z = -dot(eye, -forward);
+
   // clang-format off
   return mat4f{{
-    side.x,          up.x,          -forward.x,          0.0F,
-    side.y,          up.y,          -forward.y,          0.0F,
-    side.z,          up.z,          -forward.z,          0.0F,
-    -dot(eye, side), -dot(eye, up), -dot(eye, -forward), 1.0F
+    side.x, up.x, -forward.x, 0.0F,
+    side.y, up.y, -forward.y, 0.0F,
+    side.z, up.z, -forward.z, 0.0F,
+    t_x   , t_y , t_z       , 1.0F
   }};
 
   // clang-format on
