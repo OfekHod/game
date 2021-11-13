@@ -142,10 +142,10 @@ perspective(float fov, float aspect, float near, float far) {
 
   // clang-format off
   return mat4f{{
-1 / (aspect * tan_half), 0           , 0                               , 0,
-0                      , 1 / tan_half, 0                               , 0,
-0                      , 0           , -(far + near) / (far - near)    , -1,
-0                      , 0           , -(2 * far * near) / (far - near), 0
+    1 / (aspect * tan_half), 0           , 0                               , 0,
+    0                      , 1 / tan_half, 0                               , 0,
+    0                      , 0           , -(far + near) / (far - near)    , -1,
+    0                      , 0           , -(2 * far * near) / (far - near), 0
   }};
   // clang-format on
 }
