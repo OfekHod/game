@@ -297,16 +297,15 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
         glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
       }();
       [time, shader_program, uniView, uniProj] {
+
         // clang-format off
-      glm::mat4 view = glm::lookAt(
-  		    glm::vec3(1.2F, 1.2F, 1.2F),
-  		    glm::vec3(0.0F, 0.0F, 0.0F),
-  		    glm::vec3(0.0F, 0.0F, 1.0F)
-  		    );
+	mat4f view =  look_at(
+			vec3f{1.2F, 1.2F, 1.2F},
+			vec3f{0.0F, 0.0F, 0.0F},
+			vec3f{0.0F, 0.0F, 1.0F});
         // clang-format on
-        std::cout << "view:\n";
-	std::cout << glm::to_string(view) << "\n=====\n";
-        glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+
+        glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
         glm::mat4 proj =
             glm::perspective(glm::radians(45.0F),
