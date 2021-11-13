@@ -9,7 +9,7 @@ http://www.libpng.org/pub/png/libpng-1.2.5-manual.html
 #include <string.h>
 
 void
-read_png_file_(PngImage *img, char *file_name, FILE *fp) {
+read_png_file_(PngImage *img, const char *file_name, FILE *fp) {
 
   // Setup
   img->read_error = false;
@@ -75,7 +75,7 @@ read_png_file_(PngImage *img, char *file_name, FILE *fp) {
 }
 
 PngImage
-read_png_file(char *file_name) {
+read_png_file(const char *file_name) {
   PngImage img;
 
   FILE *fp = fopen(file_name, "rb");

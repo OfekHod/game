@@ -221,24 +221,29 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
 
     const std::array<GLenum, 2> tex_enums{GL_TEXTURE0, GL_TEXTURE1};
 
+    PngImage image_1 = read_png_file("../texture1.png");
+    PngImage image_2;
+    image_2.width = 2;
+    image_2.height = 2;
     // clang-format off
-    unsigned char image1[12] = {
-	    0, 0, 0,      0, 255, 0,
-	    255, 0, 0,    0, 0, 0};
-    unsigned char image2[12] = {
-	    0, 255, 255,      255, 255, 0,
-	    255, 0, 255,    255, 0, 0};
+    unsigned char img2_pixels[12] = {
+	    0  , 255, 255,     255, 255, 0,
+	    255, 0  , 255,     255, 0  , 0
+    };
     // clang-format on
+    image_2.pixels = img2_pixels;
 
-    unsigned char *images[2] = {image1, image2};
+    PngImage* images_p[2] = {&image_1, &image_2};
 
     for (int i = 0; i < 2; i++) {
+	    PngImage* curr = images_p[i];
+	    
       glActiveTexture(tex_enums[i]);
 
       glBindTexture(GL_TEXTURE_2D, textures[i]);
       {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB,
-                     GL_UNSIGNED_BYTE, images[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, curr->width, curr->height, 0, GL_RGB,
+                     GL_UNSIGNED_BYTE, curr->pixels);
       }
 
       glGenerateMipmap(GL_TEXTURE_2D);

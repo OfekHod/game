@@ -12,4 +12,5 @@ struct PngImage {
   bool read_error = false;
 };
 
-PngImage read_png_file(char *file_name);
+PngImage
+read_png_file(const char *file_name);
