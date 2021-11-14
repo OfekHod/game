@@ -16,26 +16,36 @@
 #include <thread>
 #include <utility>
 
+typedef std::chrono::high_resolution_clock::time_point time_point;
+
+time_point
+now() {
+  return std::chrono::high_resolution_clock::now();
+}
+
+float
+time_between(time_point start,
+             time_point end) {
+  return std::chrono::duration_cast<std::chrono::duration<float>>(end - start)
+      .count();
+}
+
 enum class KeyState { KeyUp, KeyDown, KeyPressed };
 
 KeyState
 update_kstate(KeyState s, int curr_state) {
-    if (curr_state != GLFW_PRESS) {
-      return KeyState::KeyUp;
-    } else if (s == KeyState::KeyUp) {
-      return KeyState::KeyPressed;
-    } else {
-      return KeyState::KeyDown;
-    }
+  if (curr_state != GLFW_PRESS) {
+    return KeyState::KeyUp;
+  } else if (s == KeyState::KeyUp) {
+    return KeyState::KeyPressed;
+  } else {
+    return KeyState::KeyDown;
+  }
 }
 
 bool
 is_pressed(KeyState s) {
   return s == KeyState::KeyPressed;
-}
-bool
-is_down(KeyState s) {
-  return s == KeyState::KeyPressed || s == KeyState::KeyDown;
 }
 
 struct Shader {
@@ -227,17 +237,17 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
     // clang-format on
     image_2.pixels = img2_pixels;
 
-    PngImage* images_p[2] = {&image_1, &image_2};
+    PngImage *images_p[2] = {&image_1, &image_2};
 
     for (int i = 0; i < 2; i++) {
-	    PngImage* curr = images_p[i];
-	    
+      PngImage *curr = images_p[i];
+
       glActiveTexture(tex_enums[i]);
 
       glBindTexture(GL_TEXTURE_2D, textures[i]);
       {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, curr->width, curr->height, 0, GL_RGB,
-                     GL_UNSIGNED_BYTE, curr->pixels);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, curr->width, curr->height, 0,
+                     GL_RGB, GL_UNSIGNED_BYTE, curr->pixels);
       }
 
       glGenerateMipmap(GL_TEXTURE_2D);
@@ -256,7 +266,7 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
     const GLint uniProj = glGetUniformLocation(shader_program, "proj");
     const GLint inter = glGetUniformLocation(shader_program, "inter");
 
-    const auto t_start = std::chrono::high_resolution_clock::now();
+    const time_point t_start = now();
 
     KeyState space = KeyState::KeyUp;
     const auto window = ctx.window.ptr;
@@ -269,14 +279,12 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
       };
 
       space = update_kstate(space, glfwGetKey(window, GLFW_KEY_SPACE));
-      if (is_pressed(space)) {
+      if (space == KeyState::KeyPressed) {
         sign *= -1;
       }
 
-      auto t_now = std::chrono::high_resolution_clock::now();
-      float time = std::chrono::duration_cast<std::chrono::duration<float>>(
-                       t_now - t_start)
-                       .count();
+      time_point t_now = now();
+      float time = time_between(t_start, t_now);
       glUniform1f(inter, time / 2.0F);
 
       [uniTrans, time, &space, &sign] {
@@ -287,11 +295,10 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
             rotation(vec3f{1.0F, 0.0F, 0.0F}, time * 50.F * pi / 180.0F);
         mat4f trans = rot * scale_mat;
         trans = trans * rotation(vec3f{1.0F, 0.0F, 0.0F},
-                                   0.5F * (1.0F + sign) * (180.0F * pi / 180));
+                                 0.5F * (1.0F + sign) * (180.0F * pi / 180));
         glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
       }();
       [time, shader_program, uniView, uniProj] {
-
         // clang-format off
 	mat4f view =  look_at(
 			vec3f{1.2F, 1.2F, 1.2F},
@@ -301,8 +308,9 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
 
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
-	mat4f proj = perspective(45.0F * pi / 180.0F, 
-			float(screen_width) / screen_height, 1.0f, 10.F);
+        mat4f proj =
+            perspective(45.0F * pi / 180.0F,
+                        float(screen_width) / screen_height, 1.0f, 10.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       }();
