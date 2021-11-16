@@ -3,6 +3,7 @@
 #include "read_images.hpp"
 
 #include <cmath>
+#include <cstdio>
 
 #include <algorithm>
 #include <array>
@@ -24,8 +25,7 @@ now() {
 }
 
 float
-time_between(time_point start,
-             time_point end) {
+time_between(time_point start, time_point end) {
   return std::chrono::duration_cast<std::chrono::duration<float>>(end - start)
       .count();
 }
@@ -89,7 +89,7 @@ constexpr int screen_width = 1000;
 constexpr int screen_height = 1000;
 
 void
-render(const std::string &vertex_source, const std::string &fragment_source) {
+render(char *vertex_source, char *fragment_source) {
 
   GlfwContext ctx(screen_width, screen_height);
 
@@ -188,8 +188,8 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
                                texcoord_size] {
     auto shader_program = glCreateProgram();
 
-    const Shader vertex_shader(vertex_source.c_str(), GL_VERTEX_SHADER);
-    const Shader fragment_shader(fragment_source.c_str(), GL_FRAGMENT_SHADER);
+    const Shader vertex_shader(vertex_source, GL_VERTEX_SHADER);
+    const Shader fragment_shader(fragment_source, GL_FRAGMENT_SHADER);
 
     glAttachShader(shader_program, vertex_shader.gl_ptr);
     glAttachShader(shader_program, fragment_shader.gl_ptr);
@@ -303,7 +303,7 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
 	mat4f view =  look_at(
 			vec3f{1.2F, 1.2F, 1.2F},
 			vec3f{0.0F, 0.0F, 0.0F},
-			vec3f{0.0F, 0.0F, 1.0F});
+			vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
 
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
@@ -325,6 +325,22 @@ render(const std::string &vertex_source, const std::string &fragment_source) {
   }();
 }
 
+char *
+read_whole_file(char *path) {
+  FILE *f = fopen(path, "r");
+  if (f == nullptr) {
+    return nullptr;
+  }
+  fseek(f, 0, SEEK_END);
+  long fsize = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char *content = (char *)malloc(sizeof(char) * fsize + 1);
+  fread(content, sizeof(char), fsize, f);
+  fclose(f);
+  content[fsize] = 0;
+  return content;
+}
+
 int
 main(int argc, char **argv) {
   if (argc < 3) {
@@ -333,19 +349,8 @@ main(int argc, char **argv) {
     exit(1);
   }
 
-  const auto [vertex_source, fragment_source] = [&argv] {
-    std::ifstream vertex_source_f(argv[1]);
-    std::ifstream fragment_source_f(argv[2]);
-    const std::string vertex_source(
-        (std::istreambuf_iterator<char>(vertex_source_f)),
-        std::istreambuf_iterator<char>());
-
-    const std::string fragment_source(
-        (std::istreambuf_iterator<char>(fragment_source_f)),
-        std::istreambuf_iterator<char>());
-
-    return std::tuple(vertex_source, fragment_source);
-  }();
+  char *vertex_source(read_whole_file(argv[1]));
+  char *fragment_source(read_whole_file(argv[2]));
 
   render(vertex_source, fragment_source);
   return 0;
