@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 
 #include <algorithm>
 #include <array>
@@ -225,8 +226,8 @@ render(char *vertex_source, char *fragment_source) {
 
     const std::array<GLenum, 2> tex_enums{GL_TEXTURE0, GL_TEXTURE1};
 
-    PngImage image_1 = read_png_file("../texture1.png");
-    PngImage image_2;
+    Image image_1 = read_png_file("../texture1.png");
+    Image image_2;
     image_2.width = 2;
     image_2.height = 2;
     // clang-format off
@@ -237,10 +238,10 @@ render(char *vertex_source, char *fragment_source) {
     // clang-format on
     image_2.pixels = img2_pixels;
 
-    PngImage *images_p[2] = {&image_1, &image_2};
+    Image *images_p[2] = {&image_1, &image_2};
 
     for (int i = 0; i < 2; i++) {
-      PngImage *curr = images_p[i];
+      Image *curr = images_p[i];
 
       glActiveTexture(tex_enums[i]);
 

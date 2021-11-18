@@ -1,5 +1,6 @@
 #include "math.hpp"
 #include "stdio.h"
+#include <cstdint>
 #include <cmath>
 
 /*
@@ -8,8 +9,8 @@
 mat4f
 identity() {
   mat4f res;
-  for (int col = 0; col < 4; ++col) {
-    for (int row = 0; row < 4; ++row) {
+  for (int8_t col = 0; col < 4; ++col) {
+    for (uint8_t row = 0; row < 4; ++row) {
       if (col != row) {
         res.elements[col * 4 + row] = 0;
       } else {
@@ -24,9 +25,9 @@ mat4f
 diagonal(float a, float b, float c, float d) {
   const float diag[4] = {a, b, c, d};
   mat4f res;
-  int diag_idx = 0;
-  for (int col = 0; col < 4; ++col) {
-    for (int row = 0; row < 4; ++row) {
+  uint8_t diag_idx = 0;
+  for (uint8_t col = 0; col < 4; ++col) {
+    for (uint8_t row = 0; row < 4; ++row) {
       if (col != row) {
         res.elements[col * 4 + row] = 0;
       } else {
@@ -40,8 +41,8 @@ diagonal(float a, float b, float c, float d) {
 
 void
 print(mat4f m) {
-  for (int row = 0; row < 4; ++row) {
-    int col = 0;
+  for (uint8_t row = 0; row < 4; ++row) {
+    uint8_t col = 0;
     for (col = 0; col < 3; ++col) {
       printf("%f\t", m.elements[col * 4 + row]);
     }
@@ -103,11 +104,11 @@ cross(vec3f v, vec3f u) {
 mat4f
 operator*(const mat4f &m1, const mat4f &m2) {
   mat4f res;
-  for (int res_col = 0; res_col < 4; ++res_col) {
-    for (int res_row = 0; res_row < 4; ++res_row) {
+  for (uint8_t res_col = 0; res_col < 4; ++res_col) {
+    for (uint8_t res_row = 0; res_row < 4; ++res_row) {
       float *pos = &res.elements[res_col * 4 + res_row];
       *pos = 0;
-      for (int a = 0; a < 4; ++a) {
+      for (uint8_t a = 0; a < 4; ++a) {
         *pos += m1.elements[res_col * 4 + a] * m2.elements[a * 4 + res_row];
       }
     }

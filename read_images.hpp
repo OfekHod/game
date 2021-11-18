@@ -1,16 +1,14 @@
 #pragma once
 
 #include <png.h>
+#include <cstdint>
 
-struct PngImage {
-  int width;
-  int height;
-  png_byte color_type;
-  png_byte bit_depth;
-  int number_of_passes;
-  png_byte *pixels;
-  bool read_error = false;
+struct Image {
+  uint32_t width;
+  uint32_t height;
+  uint8_t *pixels;
+  bool is_default;
 };
 
-PngImage
+Image
 read_png_file(const char *file_name);
