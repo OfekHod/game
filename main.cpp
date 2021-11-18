@@ -3,8 +3,8 @@
 #include "read_images.hpp"
 
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 
 #include <algorithm>
 #include <array>
@@ -34,8 +34,8 @@ time_between(time_point start, time_point end) {
 enum class KeyState { KeyUp, KeyDown, KeyPressed };
 
 KeyState
-update_kstate(KeyState s, int curr_state) {
-  if (curr_state != GLFW_PRESS) {
+update_kstate(KeyState s, int glfw_state) {
+  if (glfw_state != GLFW_PRESS) {
     return KeyState::KeyUp;
   } else if (s == KeyState::KeyUp) {
     return KeyState::KeyPressed;
@@ -69,21 +69,10 @@ struct Shader {
   }
 };
 
-template <typename T, size_t N>
-constexpr auto
-value_size(const std::array<T, N> &arr) {
-  return std::tuple_size<T>::value;
-}
-
-template <typename T, size_t N>
-constexpr auto
-sizeof_value(const std::array<T, N> &arr) {
-  return sizeof(T);
-}
-
-template <size_t N_VERTS> struct VertsContent {
-  std::array<std::array<float, 3>, N_VERTS> verts;
-  std::array<std::array<float, 2>, N_VERTS> texcoords;
+struct VertsContent {
+  size_t size;
+  vec3f* verts;
+  vec2f* texcoords;
 };
 
 constexpr int screen_width = 1000;
@@ -101,8 +90,7 @@ render(char *vertex_source, char *fragment_source) {
 
   // clang-format off
 
-  const std::array<std::array<float, 3>, 8>
-	  cube_verts = {{
+  const vec3f cube_verts[8] = {
       	{-0.5F,  0.5F, -0.5F},
       	{ 0.5F,  0.5F, -0.5F},
       	{ 0.5F, -0.5F, -0.5F},
@@ -111,9 +99,9 @@ render(char *vertex_source, char *fragment_source) {
       	{ 0.5F,  0.5F,  0.5F},
       	{ 0.5F, -0.5F,  0.5F},
       	{-0.5F, -0.5F,  0.5F}
-      }};
+      };
 
-  const std::array<std::array<int, 4>, 6> rects{
+  const std::array<int, 4> rects[6]
   {
 	{0, 1, 2, 3},
 	{1, 5, 6, 2},
@@ -121,19 +109,27 @@ render(char *vertex_source, char *fragment_source) {
 	{0, 3, 7, 4},
 	{0, 4, 5, 1},
 	{5, 4, 7, 6}
-  }};
+  };
 
-  const std::array<std::array<float, 2>, 4> tex_c {{
+  const vec2f tex_c[4] {
       	{0.0F, 0.0F},
       	{0.0F, 1.0F},
 	{1.0F, 1.0F},
       	{1.0F, 0.0F}
-  }};
+  };
 
   // clang-format on
 
-  VertsContent<6 * 4> verts_content;
-  std::array<GLuint, 6 * 6> elements{};
+  VertsContent verts_content;
+  const size_t n_verts = 6 * 4;
+  vec3f c_verts[n_verts];
+  vec2f c_coords[n_verts];
+
+  verts_content.size = n_verts;
+  verts_content.verts = c_verts;
+  verts_content.texcoords = c_coords;
+
+  GLuint  elements[6 * 6];
   {
     int ver_out = 0;
     int el_out = 0;
@@ -160,28 +156,33 @@ render(char *vertex_source, char *fragment_source) {
 
   constexpr size_t attr_size = vert_size + texcoord_size;
 
-  std::array<float, verts_content.verts.size() * attr_size> attr;
+  float attr[verts_content.size * attr_size];
+
   [&attr, &verts_content] {
-    auto attr_it = std::begin(attr);
-    for (auto [it_v, it_t] = std::tuple(begin(verts_content.verts),
-                                        begin(verts_content.texcoords));
-         it_v != end(verts_content.verts); ++it_v, ++it_t) {
-      attr_it = std::copy(begin(*it_v), end(*it_v), attr_it);
-      attr_it = std::copy(begin(*it_t), end(*it_t), attr_it);
+	  size_t attr_idx = 0;
+    for (size_t vert_idx = 0; vert_idx < verts_content.size; vert_idx++) {
+      vec3f *vert = &verts_content.verts[vert_idx];
+      vec2f *coord = &verts_content.texcoords[vert_idx];
+      attr[attr_idx++] = vert->x;
+      attr[attr_idx++] = vert->y;
+      attr[attr_idx++] = vert->z;
+
+      attr[attr_idx++]  = coord->x;
+      attr[attr_idx++]  = coord->y;
     }
   }();
 
   [&attr, &elements] {
-    std::array<GLuint, 2> arr;
-    glGenBuffers(2, arr.data());
+    GLuint arr[2];
+    glGenBuffers(2, arr);
 
-    const GLuint vbo = std::get<0>(arr);
+    const GLuint vbo = arr[0];
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(attr), attr.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(attr), attr, GL_STATIC_DRAW);
 
-    const GLuint ebo = std::get<1>(arr);
+    const GLuint ebo = arr[1];
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements.data(),
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements,
                  GL_STATIC_DRAW);
   }();
 
@@ -222,9 +223,8 @@ render(char *vertex_source, char *fragment_source) {
     std::array<GLuint, 2> textures;
     glGenTextures(2, textures.data());
 
-    const std::array<const char *, 2> shader_pnames{"tex1", "tex2"};
-
-    const std::array<GLenum, 2> tex_enums{GL_TEXTURE0, GL_TEXTURE1};
+    const char * shader_pnames[2] = {"tex1", "tex2"};
+    const GLenum tex_enums[2] = {GL_TEXTURE0, GL_TEXTURE1};
 
     Image image_1 = read_png_file("../texture1.png");
     Image image_2;
@@ -261,7 +261,7 @@ render(char *vertex_source, char *fragment_source) {
     }
   }();
 
-  [&ctx, &shader_program, el_size = elements.size()] {
+  [&ctx, &shader_program, el_size = sizeof(elements) / sizeof(GLuint)] {
     const GLint uniTrans = glGetUniformLocation(shader_program, "trans");
     const GLuint uniView = glGetUniformLocation(shader_program, "view");
     const GLint uniProj = glGetUniformLocation(shader_program, "proj");
@@ -333,7 +333,7 @@ read_whole_file(char *path) {
     return nullptr;
   }
   fseek(f, 0, SEEK_END);
-  long fsize = ftell(f);
+  size_t fsize = ftell(f);
   fseek(f, 0, SEEK_SET);
   char *content = (char *)malloc(sizeof(char) * fsize + 1);
   fread(content, sizeof(char), fsize, f);
@@ -354,5 +354,8 @@ main(int argc, char **argv) {
   char *fragment_source(read_whole_file(argv[2]));
 
   render(vertex_source, fragment_source);
+
+  free(vertex_source);
+  free(fragment_source);
   return 0;
 }
