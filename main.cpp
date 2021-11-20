@@ -1,4 +1,3 @@
-#include "glfw_wrapper.hpp"
 #include "math.hpp"
 #include "read_images.hpp"
 
@@ -71,17 +70,16 @@ struct Shader {
 
 struct VertsContent {
   size_t size;
-  vec3f* verts;
-  vec2f* texcoords;
+  vec3f *verts;
+  vec2f *texcoords;
 };
 
 constexpr int screen_width = 1000;
 constexpr int screen_height = 1000;
 
 void
-render(char *vertex_source, char *fragment_source) {
+render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
 
-  GlfwContext ctx(screen_width, screen_height);
 
   glEnable(GL_DEPTH_TEST);
   GLuint vao;
@@ -129,7 +127,7 @@ render(char *vertex_source, char *fragment_source) {
   verts_content.verts = c_verts;
   verts_content.texcoords = c_coords;
 
-  GLuint  elements[6 * 6];
+  GLuint elements[6 * 6];
   {
     int ver_out = 0;
     int el_out = 0;
@@ -159,7 +157,7 @@ render(char *vertex_source, char *fragment_source) {
   float attr[verts_content.size * attr_size];
 
   [&attr, &verts_content] {
-	  size_t attr_idx = 0;
+    size_t attr_idx = 0;
     for (size_t vert_idx = 0; vert_idx < verts_content.size; vert_idx++) {
       vec3f *vert = &verts_content.verts[vert_idx];
       vec2f *coord = &verts_content.texcoords[vert_idx];
@@ -167,8 +165,8 @@ render(char *vertex_source, char *fragment_source) {
       attr[attr_idx++] = vert->y;
       attr[attr_idx++] = vert->z;
 
-      attr[attr_idx++]  = coord->x;
-      attr[attr_idx++]  = coord->y;
+      attr[attr_idx++] = coord->x;
+      attr[attr_idx++] = coord->y;
     }
   }();
 
@@ -223,7 +221,7 @@ render(char *vertex_source, char *fragment_source) {
     std::array<GLuint, 2> textures;
     glGenTextures(2, textures.data());
 
-    const char * shader_pnames[2] = {"tex1", "tex2"};
+    const char *shader_pnames[2] = {"tex1", "tex2"};
     const GLenum tex_enums[2] = {GL_TEXTURE0, GL_TEXTURE1};
 
     Image image_1 = read_png_file("../texture1.png");
@@ -261,7 +259,7 @@ render(char *vertex_source, char *fragment_source) {
     }
   }();
 
-  [&ctx, &shader_program, el_size = sizeof(elements) / sizeof(GLuint)] {
+  [&window, &shader_program, el_size = sizeof(elements) / sizeof(GLuint)] {
     const GLint uniTrans = glGetUniformLocation(shader_program, "trans");
     const GLuint uniView = glGetUniformLocation(shader_program, "view");
     const GLint uniProj = glGetUniformLocation(shader_program, "proj");
@@ -270,7 +268,6 @@ render(char *vertex_source, char *fragment_source) {
     const time_point t_start = now();
 
     KeyState space = KeyState::KeyUp;
-    const auto window = ctx.window.ptr;
     float sign = 1;
     while (!glfwWindowShouldClose(window)) {
 
@@ -320,7 +317,7 @@ render(char *vertex_source, char *fragment_source) {
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
       glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
 
-      glfwSwapBuffers(ctx.window.ptr);
+      glfwSwapBuffers(window);
       glfwPollEvents();
     }
   }();
@@ -342,6 +339,23 @@ read_whole_file(char *path) {
   return content;
 }
 
+GLFWwindow *
+open_window(int width, int height) {
+  glfwInit();
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+
+  GLFWwindow *ptr = glfwCreateWindow(width, height, "opengl", nullptr, nullptr);
+  glfwMakeContextCurrent(ptr);
+
+  glewExperimental = GL_TRUE;
+  glewInit();
+  return ptr;
+}
+
 int
 main(int argc, char **argv) {
   if (argc < 3) {
@@ -353,8 +367,11 @@ main(int argc, char **argv) {
   char *vertex_source(read_whole_file(argv[1]));
   char *fragment_source(read_whole_file(argv[2]));
 
-  render(vertex_source, fragment_source);
+  GLFWwindow *window = open_window(screen_width, screen_height);
+  render(window, vertex_source, fragment_source);
 
+  glfwDestroyWindow(window);
+  glfwTerminate();
   free(vertex_source);
   free(fragment_source);
   return 0;
