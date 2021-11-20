@@ -8,16 +8,25 @@ target_compile_features(app PRIVATE cxx_std_17)
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 
-##### LIBPNG
+#############################################
+#LIBPNG
+#############################################
+
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external_libs/zlib-1.2.11/")
+
+
 set(PNG_SHARED OFF CACHE BOOL "" FORCE)
 set(PNG_STATIC ON CACHE BOOL "" FORCE)
-set(PNG_EXECUTABLES OFF CACHE BOOL "" FORCE)  ###################
-set(PNG_TESTS OFF CACHE BOOL "" FORCE)        # we only want lib#
-set(SKIP_INSTALL_ALL OFF CACHE BOOL "" FORCE) ###################
 
-target_include_directories(app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")
+set(PNG_EXECUTABLES OFF CACHE BOOL "" FORCE)
+set(PNG_TESTS OFF CACHE BOOL "" FORCE)
+set(SKIP_INSTALL_ALL OFF CACHE BOOL "" FORCE)
+set(PNG_BUILD_ZLIB ON CACHE BOOL "" FORCE)
+set(ZLIB_LIBRARY zlib)
+
+#target_include_directories(app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")
-#####################
+#############################################
 
 find_package(OpenGL REQUIRED COMPONENTS OpenGL)
 find_package(GLEW REQUIRED)
