@@ -31,4 +31,4 @@ target_include_directories(app PRIVATE ${GLFW_INCLUDE_DIRS})
 #SET(GCC_COVERAGE_COMPILE_FLAGS "-Q")
 #add_definitions(${GCC_COVERAGE_COMPILE_FLAGS})
 
-target_link_libraries(app OpenGL::OpenGL GLEW::GLEW png ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(app OpenGL::OpenGL GLEW::GLEW png_static ${GLFW_STATIC_LIBRARIES})
