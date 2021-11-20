@@ -15,7 +15,6 @@ set(PNG_EXECUTABLES OFF CACHE BOOL "" FORCE) # we only want lib
 set(PNG_TESTS OFF CACHE BOOL "" FORCE) # we only want lib
 set(SKIP_INSTALL_ALL OFF CACHE BOOL "" FORCE) # we only want lib
 target_include_directories(app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")
-
 target_include_directories(app PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/external_libs/libpng-1.6.37")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")
 #####################
