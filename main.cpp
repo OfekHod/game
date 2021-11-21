@@ -76,14 +76,14 @@ struct VertsContent {
   size_t size;
   vec3f *verts;
   vec2f *texcoords;
+  vec3f *normals;
 };
 
 constexpr int screen_width = 1000;
 constexpr int screen_height = 1000;
 
 void
-render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
-
+render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
   glEnable(GL_DEPTH_TEST);
   GLuint vao;
@@ -103,14 +103,14 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
       	{-0.5F, -0.5F,  0.5F}
       };
 
-  const std::array<int, 4> rects[6]
+  const std::pair<std::array<int, 4>, vec3f> rects[6]
   {
-	{0, 1, 2, 3},
-	{1, 5, 6, 2},
-	{3, 2, 6, 7},
-	{0, 3, 7, 4},
-	{0, 4, 5, 1},
-	{5, 4, 7, 6}
+	  {{0, 1, 2, 3}, vec3f{0, 0, -1}},
+	  {{1, 5, 6, 2}, vec3f{1, 0, 0}},
+	  {{3, 2, 6, 7}, vec3f{0, -1, 0}},
+	  {{0, 3, 7, 4}, vec3f{-1, 0, 0}},
+	  {{0, 4, 5, 1}, vec3f{0, 1, 0}},
+	  {{5, 4, 7, 6}, vec3f{0, 0, 1}}
   };
 
   const vec2f tex_c[4] {
@@ -126,21 +126,24 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
   const size_t n_verts = 6 * 4;
   vec3f c_verts[n_verts];
   vec2f c_coords[n_verts];
+  vec3f c_normals[n_verts];
 
   verts_content.size = n_verts;
   verts_content.verts = c_verts;
   verts_content.texcoords = c_coords;
+  verts_content.normals = c_normals;
 
   GLuint elements[6 * 6];
   {
     int ver_out = 0;
     int el_out = 0;
     int rect_num = 0;
-    for (const auto rect : rects) {
+    for (const auto [rect, normal] : rects) {
       const int a = ver_out;
       for (int j = 0; j < 4; j++) {
         verts_content.verts[ver_out] = cube_verts[rect[j]];
         verts_content.texcoords[ver_out] = tex_c[j];
+        verts_content.normals[ver_out] = normal;
         ver_out++;
       }
 
@@ -155,8 +158,9 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
 
   constexpr size_t vert_size = 3;
   constexpr size_t texcoord_size = 2;
+  constexpr size_t normal_size = 3;
 
-  constexpr size_t attr_size = vert_size + texcoord_size;
+  constexpr size_t attr_size = vert_size + texcoord_size + normal_size;
 
   float attr[verts_content.size * attr_size];
 
@@ -165,12 +169,19 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
     for (size_t vert_idx = 0; vert_idx < verts_content.size; vert_idx++) {
       vec3f *vert = &verts_content.verts[vert_idx];
       vec2f *coord = &verts_content.texcoords[vert_idx];
+      vec3f *normal = &verts_content.normals[vert_idx];
+
+
       attr[attr_idx++] = vert->x;
       attr[attr_idx++] = vert->y;
       attr[attr_idx++] = vert->z;
 
       attr[attr_idx++] = coord->x;
       attr[attr_idx++] = coord->y;
+
+      attr[attr_idx++] = normal->x;
+      attr[attr_idx++] = normal->y;
+      attr[attr_idx++] = normal->z;
     }
   }();
 
@@ -201,8 +212,10 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
     glLinkProgram(shader_program);
     glUseProgram(shader_program);
 
-    std::array<std::tuple<const char *, size_t>, 2> program_args{
-        {{"position", vert_size}, {"texcoord", texcoord_size}}};
+    std::array<std::tuple<const char *, size_t>, 3> program_args{
+        {{"position", vert_size},
+         {"texcoord", texcoord_size},
+         {"normal", vert_size}}};
 
     size_t sizeof_attr = 0;
     for (const auto &x : program_args) {
@@ -294,7 +307,7 @@ render(GLFWwindow* window, char *vertex_source, char *fragment_source) {
 
         mat4f scale_mat = diagonal(scale, scale, scale, 1);
         mat4f rot =
-            rotation(vec3f{1.0F, 0.0F, 0.0F}, time * 50.F * pi / 180.0F);
+            rotation(vec3f{1.0F, 1.0F, 1.0F}, time * 50.F * pi / 180.0F);
         mat4f trans = rot * scale_mat;
         trans = trans * rotation(vec3f{1.0F, 0.0F, 0.0F},
                                  0.5F * (1.0F + sign) * (180.0F * pi / 180));

@@ -21,7 +21,6 @@ set(PNG_EXECUTABLES OFF CACHE BOOL "" FORCE)
 set(PNG_TESTS OFF CACHE BOOL "" FORCE)
 set(SKIP_INSTALL_ALL OFF CACHE BOOL "" FORCE)
 set(PNG_BUILD_ZLIB ON CACHE BOOL "" FORCE)
-#set(ZLIB_LIBRARY zlib)
 
 target_include_directories(app PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/external_libs/libpng-1.6.37")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/external_libs/libpng-1.6.37")

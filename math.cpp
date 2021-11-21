@@ -1,7 +1,7 @@
 #include "math.hpp"
 #include "stdio.h"
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 
 /*
    To conform with OpenGL conventions, matrices are saved column first
@@ -50,8 +50,20 @@ print(mat4f m) {
   }
 }
 
+float
+len(vec3f v) {
+  return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+vec3f
+normalized(vec3f v) {
+  float v_len = len(v);
+  return vec3f{v.x / v_len, v.y / v_len, v.z / v_len};
+}
+
 mat4f
 rotation(vec3f u, float theta) {
+  u = normalized(u);
   float cos_t = cos(theta);
   float sin_t = sin(theta);
   float m_cos_t = 1.0F - cos_t;
@@ -83,15 +95,6 @@ dot(vec3f u, vec3f v) {
   return u.x * v.x + u.y * v.y + u.z * v.z;
 }
 
-float
-len(vec3f v) {
-  return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-}
-vec3f
-normalized(vec3f v) {
-  float v_len = len(v);
-  return vec3f{v.x / v_len, v.y / v_len, v.z / v_len};
-}
 
 // vx vy vz
 // ux uy uz
