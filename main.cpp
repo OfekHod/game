@@ -75,39 +75,56 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   glGenVertexArrays(2, vaos);
   glBindVertexArray(vaos[0]);
   GLuint overlay_shader_program = glCreateProgram();
-  // Overlay texture
-  {
+  GLuint overlay_texture;
+  glGenTextures(1, &overlay_texture);
 
-    size_t width = 10;
-    size_t height = 10;
-    uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height * 3);
+  // Terrain def
+  Image terrain;
+  {
+    size_t width = 100;
+    size_t height = 100;
+    uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        uint8_t val = (int)(255.0F * (float)row / (float)height);
-        for (int channel = 0; channel < 3; ++channel) {
-          pixels[row * width + col + channel] = val;
-        }
+
+        float col_norm = (float)col / (float)width;
+        float row_norm = (float)row / (float)height;
+
+        float val_f = 0.5F + 0.5F * sinf(row_norm * pi * 10);
+        val_f += 0.5F + 0.5F * cosf(col_norm * pi * 10);
+	val_f /= 2;
+
+	val_f *= powf(1.0F - fabs(row_norm - 0.5), 4);
+	val_f *= powf(1.0F - fabs(col_norm - 0.5), 4);
+        uint8_t val = (int)(255.0F * val_f);
+        pixels[row * width + col] = val;
       }
     }
-
-    GLuint texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, pixels);
+    terrain.width = width;
+    terrain.height = height;
+    terrain.pixels = pixels;
+  }
+  // Overlay texture
+  {
+    glBindTexture(GL_TEXTURE_2D, overlay_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0,
+                 GL_RED, GL_UNSIGNED_BYTE, terrain.pixels);
 
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // clang-format off
     float attrs[] = {
-        -0.5F,  0.5F,
-         0.5F,  0.5F,
-         0.5F, -0.5F,
-        -0.5F, -0.5F
+	//verts        //tex coord
+        0.6F, 1.0F,     0.0F, 1.0F,
+        1.0F, 1.0F,     1.0F, 1.0F,
+        1.0F, 0.6F,     1.0F, 0.0F,
+        0.6F, 0.6F,     0.0F, 0.0F
     };
 
     GLuint elements[] = {
@@ -134,10 +151,13 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     # version 150 core
 
     in vec2 position;
+    in vec2 uv;
 
+    out vec2 Texcoord;
     void main()
     {
         gl_Position = vec4(position, 0.0, 1.0);
+	Texcoord = uv;
     }
     )glsl",
                                   GL_VERTEX_SHADER);
@@ -145,9 +165,14 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     Shader fragment_shader = Shader(R"glsl(
     # version 150 core
     out vec4 outColor;
+    in vec2 Texcoord;
+
+    uniform sampler2D tex;
+
     void main()
     {
-       outColor = vec4(1.0, 1.0, 1.0, 1.0); 
+       vec4 c = texture(tex, Texcoord); 
+       outColor = vec4(c.r, c.r, c.r, 1.0);
     }
     )glsl",
                                     GL_FRAGMENT_SHADER);
@@ -158,9 +183,13 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     glLinkProgram(overlay_shader_program);
 
     GLuint pos_attrib = glGetAttribLocation(overlay_shader_program, "position");
-    glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    GLuint coord_attrib = glGetAttribLocation(overlay_shader_program, "uv");
+    int attr_size = sizeof(float) * 4;
+    glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE, attr_size, 0);
     glEnableVertexAttribArray(pos_attrib);
-
+    glVertexAttribPointer(coord_attrib, 2, GL_FLOAT, GL_FALSE, attr_size,
+                          (void *)(sizeof(float) * 2));
+    glEnableVertexAttribArray(coord_attrib);
   }
 
   glBindVertexArray(vaos[1]);
@@ -309,6 +338,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
   //--------------------------------------------------------------------------------
   // Set cube texture
+  GLuint texture;
+  glGenTextures(1, &texture);
   {
 
     size_t width = 2;
@@ -320,8 +351,6 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     };
     // clang-format on
 
-    GLuint texture;
-    glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
                  GL_UNSIGNED_BYTE, pixels);
@@ -346,6 +375,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     float sign = 1;
     while (!glfwWindowShouldClose(window)) {
 
+      glBindTexture(GL_TEXTURE_2D, texture);
       glUseProgram(cube_shader_program);
       if (glfwGetKey(window, GLFW_KEY_Q)) {
         printf("Exit\n");
@@ -380,28 +410,42 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       //--------------------------------------------------
-      // Object position
+      // Objects position
       //--------------------------------------------------
-      {
-        const float scale = 0.5;
-
-        mat4f scale_mat = diagonal(scale, scale, scale, 1);
-        mat4f rot =
-            rotation(vec3f{1.0F, 1.0F, 1.0F}, time * 50.F * pi / 180.0F);
-        mat4f trans = rot * scale_mat;
-        glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
-      }
-
       glBindVertexArray(vaos[1]);
+      for (int row = 0; row < terrain.height; ++row) {
+        for (int col = 0; col < terrain.width; ++col) {
+          uint8_t val_i = terrain.pixels[row * terrain.width + col];
+          float val_f = (float)val_i / 255.0F;
+          {
+            float row_norm = (float)row / terrain.height;
+            float col_norm = (float)col / terrain.width;
+            const float scale = 0.5;
 
-      glEnable(GL_DEPTH_TEST);
-      glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
+            //mat4f scale_mat = diagonal(0.1, val_f, 0.1, 1);
+            mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 50.F * pi / 180.0F);
 
+	    float w_pix = 1.0F / terrain.width;
+	    float h_pix = 1.0F / terrain.height;
 
+            mat4f trans =  diagonal(w_pix, val_f, h_pix, 1);
+	    trans.elements[12] = row_norm - 0.5;
+	    trans.elements[14] = col_norm - 0.5;
+
+	    trans = trans * rot;
+            glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
+          }
+
+          glEnable(GL_DEPTH_TEST);
+          glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
+        }
+      }
+      // Draw overlay texture
       glBindVertexArray(vaos[0]);
       glDisable(GL_DEPTH_TEST);
+      glBindTexture(GL_TEXTURE_2D, overlay_texture);
       glUseProgram(overlay_shader_program);
-      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
       glfwSwapBuffers(window);
       glfwPollEvents();
