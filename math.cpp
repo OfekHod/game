@@ -112,7 +112,7 @@ operator*(const mat4f &m1, const mat4f &m2) {
       float *pos = &res.elements[res_col * 4 + res_row];
       *pos = 0;
       for (uint8_t a = 0; a < 4; ++a) {
-        *pos += m1.elements[res_col * 4 + a] * m2.elements[a * 4 + res_row];
+        *pos += m1.elements[a * 4 + res_row] * m2.elements[res_col * 4 + a];
       }
     }
   }

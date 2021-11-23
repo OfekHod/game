@@ -81,21 +81,21 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // Terrain def
   Image terrain;
   {
-    size_t width = 100;
-    size_t height = 100;
+    size_t width = 256;
+    size_t height = 256;
     uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
 
         float col_norm = (float)col / (float)width;
         float row_norm = (float)row / (float)height;
+	float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
 
-        float val_f = 0.5F + 0.5F * sinf(row_norm * pi * 10);
-        val_f += 0.5F + 0.5F * cosf(col_norm * pi * 10);
-	val_f /= 2;
 
-	val_f *= powf(1.0F - fabs(row_norm - 0.5), 4);
-	val_f *= powf(1.0F - fabs(col_norm - 0.5), 4);
+	float val_f = powf((1- r), 7) * (0.5F + 0.5F * cosf(r * pi * 20));
+
+        val_f = val_f * 0.6F + 0.1;
+
         uint8_t val = (int)(255.0F * val_f);
         pixels[row * width + col] = val;
       }
@@ -413,26 +413,30 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       // Objects position
       //--------------------------------------------------
       glBindVertexArray(vaos[1]);
+      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 10.F * pi / 180.0F);
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
           uint8_t val_i = terrain.pixels[row * terrain.width + col];
-          float val_f = (float)val_i / 255.0F;
+          //float val_f = (float)val_i / 255.0F;
           {
             float row_norm = (float)row / terrain.height;
             float col_norm = (float)col / terrain.width;
-            const float scale = 0.5;
-
-            //mat4f scale_mat = diagonal(0.1, val_f, 0.1, 1);
-            mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 50.F * pi / 180.0F);
 
 	    float w_pix = 1.0F / terrain.width;
 	    float h_pix = 1.0F / terrain.height;
+	    
+
+	float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
+	    float val_f = powf((1- r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2));
+	val_f = val_f * 0.8F + 0.1;
 
             mat4f trans =  diagonal(w_pix, val_f, h_pix, 1);
 	    trans.elements[12] = row_norm - 0.5;
 	    trans.elements[14] = col_norm - 0.5;
 
-	    trans = trans * rot;
+	    float scale = 3.0F;
+            mat4f scale_mat = diagonal(scale, val_f, scale, 1);
+	    trans = rot * scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           }
 
