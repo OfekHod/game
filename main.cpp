@@ -37,7 +37,6 @@ update_kstate(KeyState s, int glfw_state) {
     return KeyState::KeyDown;
   }
 }
-
 struct Shader {
   GLuint gl_ptr;
   Shader(const char *source, GLenum type) {
@@ -89,10 +88,9 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
         float col_norm = (float)col / (float)width;
         float row_norm = (float)row / (float)height;
-	float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
+        float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
 
-
-	float val_f = powf((1- r), 7) * (0.5F + 0.5F * cosf(r * pi * 20));
+        float val_f = powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20));
 
         val_f = val_f * 0.6F + 0.1;
 
@@ -417,26 +415,26 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
           uint8_t val_i = terrain.pixels[row * terrain.width + col];
-          //float val_f = (float)val_i / 255.0F;
+          // float val_f = (float)val_i / 255.0F;
           {
             float row_norm = (float)row / terrain.height;
             float col_norm = (float)col / terrain.width;
 
-	    float w_pix = 1.0F / terrain.width;
-	    float h_pix = 1.0F / terrain.height;
-	    
+            float w_pix = 1.0F / terrain.width;
+            float h_pix = 1.0F / terrain.height;
 
-	float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
-	    float val_f = powf((1- r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2));
-	val_f = val_f * 0.8F + 0.1;
+            float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
+            float val_f =
+                powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2));
+            val_f = val_f * 0.8F + 0.1;
 
-            mat4f trans =  diagonal(w_pix, val_f, h_pix, 1);
-	    trans.elements[12] = row_norm - 0.5;
-	    trans.elements[14] = col_norm - 0.5;
+            mat4f trans = diagonal(w_pix, val_f, h_pix, 1);
+            trans.elements[12] = row_norm - 0.5;
+            trans.elements[14] = col_norm - 0.5;
 
-	    float scale = 3.0F;
+            float scale = 3.0F;
             mat4f scale_mat = diagonal(scale, val_f, scale, 1);
-	    trans = rot * scale_mat * trans;
+            trans = rot * scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           }
 
