@@ -80,8 +80,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // Terrain def
   Image terrain;
   {
-    size_t width = 256;
-    size_t height = 256;
+    size_t width = 180;
+    size_t height = 180;
     uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
@@ -361,7 +361,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   };
 
   {
-    size_t el_size = sizeof(elements) / sizeof(elements[0]);
+    size_t el_size = std::size(elements);
     GLint uniTrans = glGetUniformLocation(cube_shader_program, "trans");
     GLuint uniView = glGetUniformLocation(cube_shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_shader_program, "proj");
@@ -390,7 +390,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       {
         // clang-format off
 	mat4f view =  look_at(
-			vec3f{1.2F, 1.2F, 1.2F},
+			vec3f{2.2F, 2.2F, 2.2F},
 			vec3f{0.0F, 0.0F, 0.0F},
 			vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
@@ -411,7 +411,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       // Objects position
       //--------------------------------------------------
       glBindVertexArray(vaos[1]);
-      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 10.F * pi / 180.0F);
+      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 50.F * pi / 180.0F);
+      glEnable(GL_DEPTH_TEST);
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
           uint8_t val_i = terrain.pixels[row * terrain.width + col];
@@ -423,22 +424,36 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
             float w_pix = 1.0F / terrain.width;
             float h_pix = 1.0F / terrain.height;
 
-            float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
-            float val_f =
-                powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2));
-            val_f = val_f * 0.8F + 0.1;
+	    vec3f centers[] = {
+	    {0.5, 0.5, 2.2},
+	    {0.3, 0.7, 0.4},
+	    {0.2, 0.3, 0.8},
+	    {0.8, 0.2, 0.4},
+	    {0.7, 0.8, 0.8}
+	    };
 
-            mat4f trans = diagonal(w_pix, val_f, h_pix, 1);
+	    float acc_val = 0;
+	    for (auto center: centers){
+            float r = sqrtf(powf(col_norm - center.x, 2) + powf(row_norm - center.y, 2));
+	    r *= center.z;
+
+            float val_f =
+                powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2) +
+				0.1F + 0.1F * sinf(r * pi * 60 + 10 +  time * 5));
+            val_f = val_f * 0.8F + 0.1;
+	    acc_val += val_f;
+	    }
+
+            mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
             trans.elements[12] = row_norm - 0.5;
             trans.elements[14] = col_norm - 0.5;
 
-            float scale = 3.0F;
-            mat4f scale_mat = diagonal(scale, val_f, scale, 1);
+            float scale = 4.0F;
+            mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
             trans = rot * scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           }
 
-          glEnable(GL_DEPTH_TEST);
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
         }
       }

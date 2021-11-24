@@ -23,6 +23,7 @@ diagonal(float a, float b, float c, float d);
 
 void
 print(mat4f m);
+
 mat4f
 rotation(vec3f u, float theta);
 
