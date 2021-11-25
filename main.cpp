@@ -119,10 +119,10 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     // clang-format off
     float attrs[] = {
 	//verts        //tex coord
-        0.6F, 1.0F,     0.0F, 1.0F,
-        1.0F, 1.0F,     1.0F, 1.0F,
-        1.0F, 0.6F,     1.0F, 0.0F,
-        0.6F, 0.6F,     0.0F, 0.0F
+        -1.0F, 1.0F,     0.0F, 1.0F,
+        -0.6F, 1.0F,     1.0F, 1.0F,
+        -0.6F, 0.6F,     1.0F, 0.0F,
+        -1.0F, 0.6F,     0.0F, 0.0F
     };
 
     GLuint elements[] = {
@@ -371,10 +371,33 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
     KeyState space = KeyState::KeyUp;
     float sign = 1;
+    float scale_f = 1.2F;
+    float rot_f = 0;
     while (!glfwWindowShouldClose(window)) {
 
       glBindTexture(GL_TEXTURE_2D, texture);
       glUseProgram(cube_shader_program);
+
+      // Zoom in out
+      {
+        if (glfwGetKey(window, GLFW_KEY_W)) {
+          scale_f -= 0.3;
+        } else if (glfwGetKey(window, GLFW_KEY_S)) {
+          scale_f += 0.3;
+        }
+        scale_f = fmaxf(scale_f, 2);
+        scale_f = fminf(scale_f, 10);
+      }
+
+      // rotation
+      {
+        if (glfwGetKey(window, GLFW_KEY_A)) {
+          rot_f += 0.1;
+        } else if (glfwGetKey(window, GLFW_KEY_D)) {
+          rot_f -= 0.1;
+        }
+      }
+
       if (glfwGetKey(window, GLFW_KEY_Q)) {
         printf("Exit\n");
         exit(0);
@@ -390,7 +413,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       {
         // clang-format off
 	mat4f view =  look_at(
-			vec3f{4.2F, 4.2F, 4.2F},
+			vec3f{scale_f, scale_f, scale_f},
 			vec3f{0.0F, 0.0F, 0.0F},
 			vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
@@ -399,7 +422,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
         mat4f proj =
             perspective(45.0F * pi / 180.0F,
-                        float(screen_width) / screen_height, 1.0f, 10.F);
+                        float(screen_width) / screen_height, 1.0f, 50.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
@@ -411,7 +434,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       // Objects position
       //--------------------------------------------------
       glBindVertexArray(vaos[1]);
-      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 20.F * pi / 180.0F);
+      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
       glEnable(GL_DEPTH_TEST);
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
@@ -424,33 +447,32 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
             float w_pix = 1.0F / terrain.width;
             float h_pix = 1.0F / terrain.height;
 
-	    vec3f centers[] = {
-	    {0.5, 0.5, 1.0},
-	    {0.3, 0.7, 0.4},
-	    {0.2, 0.3, 0.8},
-	    {0.8, 0.2, 0.4},
-	    {0.7, 0.8, 0.8}
-	    };
+            vec3f centers[] = {{0.5, 0.5, 1.0},
+                               {0.3, 0.7, 1.4},
+                               {0.2, 0.3, 0.8},
+                               {0.8, 0.2, 2.4},
+                               {0.7, 0.8, 0.8}};
 
-	    float acc_val = 0;
-	    for (auto center: centers){
-            float r = sqrtf(powf(col_norm - center.x, 2) + powf(row_norm - center.y, 2));
-	    r *= center.z;
+            float acc_val = 0;
+            for (auto center : centers) {
+              float r = sqrtf(powf(col_norm - center.x, 2) +
+                              powf(row_norm - center.y, 2));
+              float tt = time * center.z;
 
-            float val_f =
-                powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20 - time * 2) +
-				0.1F + 0.1F * sinf(r * pi * 60 + 10 +  time * 5));
-            val_f = val_f * 0.8F + 0.1;
-	    acc_val += val_f;
-	    }
-	    acc_val *= 0.5;
+              float val_f = powf((1 - r), 7) *
+                            (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
+                             0.1F * sinf(r * pi * 60 + 10 + tt * 5));
+              val_f = val_f * 0.8F + 0.1;
+              acc_val += val_f;
+            }
+            acc_val *= 0.5;
 
             mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
             trans.elements[12] = row_norm - 0.5;
             trans.elements[13] = acc_val * 0.5F;
             trans.elements[14] = col_norm - 0.5;
 
-            float scale = 8.0F;
+            float scale = 6.0F;
             mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
             trans = rot * scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
@@ -495,7 +517,7 @@ open_window(int width, int height) {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-  glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
   GLFWwindow *ptr = glfwCreateWindow(width, height, "opengl", nullptr, nullptr);
   glfwMakeContextCurrent(ptr);
