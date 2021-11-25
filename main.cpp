@@ -64,8 +64,8 @@ struct VertsContent {
   vec3f *normals;
 };
 
-constexpr int screen_width = 1000;
-constexpr int screen_height = 1000;
+constexpr int screen_width = 700;
+constexpr int screen_height = 700;
 
 void
 render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
@@ -80,8 +80,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // Terrain def
   Image terrain;
   {
-    size_t width = 180;
-    size_t height = 180;
+    size_t width = 100;
+    size_t height = 100;
     uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
@@ -169,7 +169,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
     void main()
     {
-       vec4 c = texture(tex, Texcoord); 
+       vec4 c = texture(tex, Texcoord);
        outColor = vec4(c.r, c.r, c.r, 1.0);
     }
     )glsl",
@@ -390,7 +390,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       {
         // clang-format off
 	mat4f view =  look_at(
-			vec3f{2.2F, 2.2F, 2.2F},
+			vec3f{4.2F, 4.2F, 4.2F},
 			vec3f{0.0F, 0.0F, 0.0F},
 			vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
@@ -411,7 +411,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       // Objects position
       //--------------------------------------------------
       glBindVertexArray(vaos[1]);
-      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 50.F * pi / 180.0F);
+      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, time * 20.F * pi / 180.0F);
       glEnable(GL_DEPTH_TEST);
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
@@ -425,7 +425,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
             float h_pix = 1.0F / terrain.height;
 
 	    vec3f centers[] = {
-	    {0.5, 0.5, 2.2},
+	    {0.5, 0.5, 1.0},
 	    {0.3, 0.7, 0.4},
 	    {0.2, 0.3, 0.8},
 	    {0.8, 0.2, 0.4},
@@ -443,12 +443,14 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
             val_f = val_f * 0.8F + 0.1;
 	    acc_val += val_f;
 	    }
+	    acc_val *= 0.5;
 
             mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
             trans.elements[12] = row_norm - 0.5;
+            trans.elements[13] = acc_val * 0.5F;
             trans.elements[14] = col_norm - 0.5;
 
-            float scale = 4.0F;
+            float scale = 8.0F;
             mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
             trans = rot * scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
