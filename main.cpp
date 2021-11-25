@@ -64,8 +64,8 @@ struct VertsContent {
   vec3f *normals;
 };
 
-constexpr int screen_width = 700;
-constexpr int screen_height = 700;
+constexpr int screen_width = 800;
+constexpr int screen_height = 800;
 
 void
 render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
@@ -82,25 +82,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   {
     size_t width = 100;
     size_t height = 100;
-    uint8_t *pixels = (uint8_t *)malloc(sizeof(uint8_t *) * width * height);
-    for (int row = 0; row < height; ++row) {
-      for (int col = 0; col < width; ++col) {
-
-        float col_norm = (float)col / (float)width;
-        float row_norm = (float)row / (float)height;
-        float r = sqrtf(powf(col_norm - 0.5, 2) + powf(row_norm - 0.5, 2));
-
-        float val_f = powf((1 - r), 7) * (0.5F + 0.5F * cosf(r * pi * 20));
-
-        val_f = val_f * 0.6F + 0.1;
-
-        uint8_t val = (int)(255.0F * val_f);
-        pixels[row * width + col] = val;
-      }
-    }
     terrain.width = width;
     terrain.height = height;
-    terrain.pixels = pixels;
   }
   // Overlay texture
   {
@@ -117,12 +100,13 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // clang-format off
+    float s = 0.7;
     float attrs[] = {
 	//verts        //tex coord
-        -1.0F, 1.0F,     0.0F, 1.0F,
-        -0.6F, 1.0F,     1.0F, 1.0F,
-        -0.6F, 0.6F,     1.0F, 0.0F,
-        -1.0F, 0.6F,     0.0F, 0.0F
+        -1.0F , 1.0F ,     0.0F, 1.0F,
+        -1 + s, 1.0F ,     1.0F, 1.0F,
+        -1 + s, 1 - s,     1.0F, 0.0F,
+        -1.0F , 1 - s,     0.0F, 0.0F
     };
 
     GLuint elements[] = {
@@ -336,8 +320,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
   //--------------------------------------------------------------------------------
   // Set cube texture
-  GLuint texture;
-  glGenTextures(1, &texture);
+  GLuint terrain_texture;
+  glGenTextures(1, &terrain_texture);
   {
 
     size_t width = 2;
@@ -349,15 +333,15 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     };
     // clang-format on
 
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glBindTexture(GL_TEXTURE_2D, terrain_texture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
                  GL_UNSIGNED_BYTE, pixels);
 
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   };
 
   {
@@ -373,9 +357,13 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     float sign = 1;
     float scale_f = 1.2F;
     float rot_f = 0;
+
+    float *terrain_vals =
+        (float *)malloc(sizeof(float *) * terrain.width * terrain.height);
+
     while (!glfwWindowShouldClose(window)) {
 
-      glBindTexture(GL_TEXTURE_2D, texture);
+      glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
 
       // Zoom in out
@@ -413,16 +401,16 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       {
         // clang-format off
 	mat4f view =  look_at(
-			vec3f{scale_f, scale_f, scale_f},
+			vec3f{scale_f * cosf(rot_f), 0.5F * scale_f,
+			scale_f * sinf(rot_f)},
 			vec3f{0.0F, 0.0F, 0.0F},
 			vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
 
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
-        mat4f proj =
-            perspective(45.0F * pi / 180.0F,
-                        float(screen_width) / screen_height, 1.0f, 50.F);
+        mat4f proj = perspective(
+            45.0F * deg2rad, float(screen_width) / screen_height, 0.5f, 50.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
@@ -434,7 +422,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       // Objects position
       //--------------------------------------------------
       glBindVertexArray(vaos[1]);
-      mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
+      // mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
       glEnable(GL_DEPTH_TEST);
       for (int row = 0; row < terrain.height; ++row) {
         for (int col = 0; col < terrain.width; ++col) {
@@ -462,10 +450,11 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
               float val_f = powf((1 - r), 7) *
                             (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
                              0.1F * sinf(r * pi * 60 + 10 + tt * 5));
-              val_f = val_f * 0.8F + 0.1;
+              val_f = val_f * 0.8F;
               acc_val += val_f;
             }
             acc_val *= 0.5;
+            terrain_vals[row * terrain.width + col] = acc_val;
 
             mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
             trans.elements[12] = row_norm - 0.5;
@@ -474,7 +463,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
 
             float scale = 6.0F;
             mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
-            trans = rot * scale_mat * trans;
+            trans = scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           }
 
@@ -485,6 +474,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       glBindVertexArray(vaos[0]);
       glDisable(GL_DEPTH_TEST);
       glBindTexture(GL_TEXTURE_2D, overlay_texture);
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0,
+                   GL_RED, GL_FLOAT, terrain_vals);
       glUseProgram(overlay_shader_program);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 

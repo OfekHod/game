@@ -11,8 +11,9 @@ out vec3 Normal;
 uniform mat4 trans;
 uniform mat4 view;
 uniform mat4 proj;
-void main()
-{
+
+void
+main() {
   Texcoord = texcoord;
   gl_Position = proj * view * trans * vec4(position, 1.0);
   FragPos = vec3(trans * vec4(position, 1.0));
