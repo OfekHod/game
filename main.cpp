@@ -401,7 +401,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
       {
         // clang-format off
 	mat4f view =  look_at(
-			vec3f{scale_f * cosf(rot_f), 0.5F * scale_f,
+			vec3f{scale_f * cosf(rot_f), 0.7F * scale_f,
 			scale_f * sinf(rot_f)},
 			vec3f{0.0F, 0.0F, 0.0F},
 			vec3f{0.0F, 1.0F, 0.0F});
