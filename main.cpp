@@ -75,7 +75,7 @@ constexpr int screen_width = 800;
 constexpr int screen_height = 800;
 
 void
-render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
+render(GLFWwindow *window) {
 
   GLuint vaos[2];
   glGenVertexArrays(2, vaos);
@@ -581,20 +581,11 @@ open_window(int width, int height) {
 
 int
 main(int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "Usage: %s  <vertex shader>  <fragment shader>\n", argv[0]);
-    exit(1);
-  }
-
-  char *vertex_source(read_whole_file(argv[1]));
-  char *fragment_source(read_whole_file(argv[2]));
 
   GLFWwindow *window = open_window(screen_width, screen_height);
-  render(window, vertex_source, fragment_source);
+  render(window);
 
   glfwDestroyWindow(window);
   glfwTerminate();
-  free(vertex_source);
-  free(fragment_source);
   return 0;
 }
