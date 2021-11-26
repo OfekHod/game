@@ -3,7 +3,6 @@
 #include <GLFW/glfw3.h>
 
 #include "math.hpp"
-//#include "read_images.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -13,12 +12,6 @@
 #include <chrono>
 
 
-struct Image {
-  uint32_t width;
-  uint32_t height;
-  uint8_t *pixels;
-  bool is_default;
-};
 typedef std::chrono::high_resolution_clock::time_point time_point;
 
 time_point
@@ -84,23 +77,9 @@ render(GLFWwindow *window) {
   GLuint overlay_texture;
   glGenTextures(1, &overlay_texture);
 
-  // Terrain def
-  Image terrain;
-  {
-    size_t width = 150;
-    size_t height = 150;
-    terrain.width = width;
-    terrain.height = height;
-    terrain.pixels = (uint8_t*)malloc(sizeof(uint8_t) * width * height);
-    for (int i = 0; i < width * height; ++i) {
-      terrain.pixels[i] = 0;
-    }
-  }
   // Overlay texture
   {
     glBindTexture(GL_TEXTURE_2D, overlay_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0, GL_RED, GL_UNSIGNED_BYTE, terrain.pixels);
-
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -140,32 +119,32 @@ render(GLFWwindow *window) {
                    GL_STATIC_DRAW);
     }
     Shader vertex_shader = Shader(R"glsl(
-    # version 150 core
-
-    in vec2 position;
-    in vec2 uv;
-
-    out vec2 Texcoord;
-    void main()
-    {
-        gl_Position = vec4(position, 0.0, 1.0);
-	Texcoord = uv;
-    }
+        #version 150 core
+        
+        in vec2 position;
+        in vec2 uv;
+        
+        out vec2 Texcoord;
+        void
+        main() {
+          gl_Position = vec4(position, 0.0, 1.0);
+          Texcoord = uv;
+        }
     )glsl",
                                   GL_VERTEX_SHADER);
 
     Shader fragment_shader = Shader(R"glsl(
-    # version 150 core
-    out vec4 outColor;
-    in vec2 Texcoord;
-
-    uniform sampler2D tex;
-
-    void main()
-    {
-       vec4 c = texture(tex, Texcoord);
-       outColor = vec4(c.r, c.r, c.r, 1.0);
-    }
+        #version 150 core
+        out vec4 outColor;
+        in vec2 Texcoord;
+        
+        uniform sampler2D tex;
+        
+        void
+        main() {
+          vec4 c = texture(tex, Texcoord);
+          outColor = vec4(c.r, c.r, c.r, 1.0);
+        }
     )glsl",
                                     GL_FRAGMENT_SHADER);
 
@@ -299,58 +278,55 @@ render(GLFWwindow *window) {
   // Make Cube shader
   GLuint cube_shader_program = glCreateProgram();
   {
-    const char *new_vertex_source = R"(
-#version 150 core
+    const char *new_vertex_source = R"glsl(
+        #version 150 core
+        
+        in vec3 position;
+        in vec2 texcoord;
+        in vec3 normal;
+        
+        out vec2 Texcoord;
+        out vec3 FragPos;
+        out vec3 Normal;
+        
+        uniform mat4 trans;
+        uniform mat4 view;
+        uniform mat4 proj;
+        
+        void
+        main() {
+          Texcoord = texcoord;
+          gl_Position = proj * view * trans * vec4(position, 1.0);
+          FragPos = vec3(trans * vec4(position, 1.0));
+          Normal = mat3(trans) * normal;
+        }
+    )glsl";
 
-in vec3 position;
-in vec2 texcoord;
-in vec3 normal;
-
-out vec2 Texcoord;
-out vec3 FragPos;
-out vec3 Normal;
-
-uniform mat4 trans;
-uniform mat4 view;
-uniform mat4 proj;
-
-void
-main() {
-  Texcoord = texcoord;
-  gl_Position = proj * view * trans * vec4(position, 1.0);
-  FragPos = vec3(trans * vec4(position, 1.0));
-  Normal = mat3(trans) * normal;
-}
-
-    )";
-
-    const char *new_fragment_source = R"(
-#version 150 core
-uniform float inter;
-
-in vec2 Texcoord;
-in vec3 Normal;
-in vec3 FragPos;
-
-out vec4 outColor;
-
-uniform sampler2D tex;
-
-void main() {
-  vec4 color_tex = texture(tex, Texcoord);
-  outColor = color_tex;
-
-
-  vec3 lightPos = vec3(30, 50, 10);
-  vec3 lightDir = normalize(lightPos - FragPos);
-  vec3 norm = normalize(Normal);
-  float diff = max(dot(norm, lightDir), 0.0);
-
-  outColor *= min(0.3 + diff, 1.0);
-
-
-}
-    )";
+    const char *new_fragment_source = R"glsl(
+        #version 150 core
+        uniform float inter;
+        
+        in vec2 Texcoord;
+        in vec3 Normal;
+        in vec3 FragPos;
+        
+        out vec4 outColor;
+        
+        uniform sampler2D tex;
+        
+        void
+        main() {
+          vec4 color_tex = texture(tex, Texcoord);
+          outColor = color_tex;
+        
+          vec3 lightPos = vec3(30, 50, 10);
+          vec3 lightDir = normalize(lightPos - FragPos);
+          vec3 norm = normalize(Normal);
+          float diff = max(dot(norm, lightDir), 0.0);
+        
+          outColor *= min(0.3 + diff, 1.0);
+        }
+    )glsl";
     const Shader vertex_shader(new_vertex_source, GL_VERTEX_SHADER);
     const Shader fragment_shader(new_fragment_source, GL_FRAGMENT_SHADER);
 
@@ -419,8 +395,10 @@ void main() {
     float scale_f = 1.2F;
     float rot_f = 0;
 
+    int terrain_width = 128;
+    int terrain_height = 128;
     float *terrain_vals =
-        (float *)malloc(sizeof(float *) * terrain.width * terrain.height);
+        (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -485,16 +463,14 @@ void main() {
       glBindVertexArray(vaos[1]);
       // mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
       glEnable(GL_DEPTH_TEST);
-      for (int row = 0; row < terrain.height; ++row) {
-        for (int col = 0; col < terrain.width; ++col) {
-          uint8_t val_i = terrain.pixels[row * terrain.width + col];
-          // float val_f = (float)val_i / 255.0F;
+      for (int row = 0; row < terrain_height; ++row) {
+        for (int col = 0; col < terrain_width; ++col) {
           {
-            float row_norm = (float)row / terrain.height;
-            float col_norm = (float)col / terrain.width;
+            float row_norm = (float)row / terrain_height;
+            float col_norm = (float)col / terrain_width;
 
-            float w_pix = 1.0F / terrain.width;
-            float h_pix = 1.0F / terrain.height;
+            float w_pix = 1.0F / terrain_width;
+            float h_pix = 1.0F / terrain_height;
 
             vec3f centers[] = {{0.5, 0.5, 1.5},
                                {0.3, 0.7, 1.4},
@@ -515,7 +491,7 @@ void main() {
               acc_val += val_f;
             }
             acc_val *= 0.5;
-            terrain_vals[row * terrain.width + col] = acc_val;
+            terrain_vals[row * terrain_width + col] = acc_val;
 
             mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
             trans.elements[12] = row_norm - 0.5;
@@ -535,7 +511,7 @@ void main() {
       glBindVertexArray(vaos[0]);
       glDisable(GL_DEPTH_TEST);
       glBindTexture(GL_TEXTURE_2D, overlay_texture);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0,
+      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_height, 0,
                    GL_RED, GL_FLOAT, terrain_vals);
       glUseProgram(overlay_shader_program);
       glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
