@@ -80,8 +80,8 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // Terrain def
   Image terrain;
   {
-    size_t width = 100;
-    size_t height = 100;
+    size_t width = 150;
+    size_t height = 150;
     terrain.width = width;
     terrain.height = height;
   }
@@ -435,7 +435,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
             float w_pix = 1.0F / terrain.width;
             float h_pix = 1.0F / terrain.height;
 
-            vec3f centers[] = {{0.5, 0.5, 1.0},
+            vec3f centers[] = {{0.5, 0.5, 1.5},
                                {0.3, 0.7, 1.4},
                                {0.2, 0.3, 0.8},
                                {0.8, 0.2, 2.4},
