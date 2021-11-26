@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include "math.hpp"
-#include "read_images.hpp"
+//#include "read_images.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -12,6 +12,13 @@
 #include <array>
 #include <chrono>
 
+
+struct Image {
+  uint32_t width;
+  uint32_t height;
+  uint8_t *pixels;
+  bool is_default;
+};
 typedef std::chrono::high_resolution_clock::time_point time_point;
 
 time_point
@@ -84,12 +91,15 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
     size_t height = 150;
     terrain.width = width;
     terrain.height = height;
+    terrain.pixels = (uint8_t*)malloc(sizeof(uint8_t) * width * height);
+    for (int i = 0; i < width * height; ++i) {
+      terrain.pixels[i] = 0;
+    }
   }
   // Overlay texture
   {
     glBindTexture(GL_TEXTURE_2D, overlay_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0,
-                 GL_RED, GL_UNSIGNED_BYTE, terrain.pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain.width, terrain.height, 0, GL_RED, GL_UNSIGNED_BYTE, terrain.pixels);
 
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -210,7 +220,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // clang-format on
 
   VertsContent verts_content;
-  size_t n_verts = 6 * 4;
+  constexpr size_t n_verts = 6 * 4;
   vec3f c_verts[n_verts];
   vec2f c_coords[n_verts];
   vec3f c_normals[n_verts];
@@ -248,7 +258,7 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   constexpr size_t normal_size = 3;
   constexpr size_t attr_size = vert_size + texcoord_size + normal_size;
 
-  float attr[verts_content.size * attr_size];
+  float attr[n_verts * attr_size];
 
   [&attr, &verts_content] {
     size_t attr_idx = 0;
@@ -289,9 +299,60 @@ render(GLFWwindow *window, char *vertex_source, char *fragment_source) {
   // Make Cube shader
   GLuint cube_shader_program = glCreateProgram();
   {
+    const char *new_vertex_source = R"(
+#version 150 core
 
-    const Shader vertex_shader(vertex_source, GL_VERTEX_SHADER);
-    const Shader fragment_shader(fragment_source, GL_FRAGMENT_SHADER);
+in vec3 position;
+in vec2 texcoord;
+in vec3 normal;
+
+out vec2 Texcoord;
+out vec3 FragPos;
+out vec3 Normal;
+
+uniform mat4 trans;
+uniform mat4 view;
+uniform mat4 proj;
+
+void
+main() {
+  Texcoord = texcoord;
+  gl_Position = proj * view * trans * vec4(position, 1.0);
+  FragPos = vec3(trans * vec4(position, 1.0));
+  Normal = mat3(trans) * normal;
+}
+
+    )";
+
+    const char *new_fragment_source = R"(
+#version 150 core
+uniform float inter;
+
+in vec2 Texcoord;
+in vec3 Normal;
+in vec3 FragPos;
+
+out vec4 outColor;
+
+uniform sampler2D tex;
+
+void main() {
+  vec4 color_tex = texture(tex, Texcoord);
+  outColor = color_tex;
+
+
+  vec3 lightPos = vec3(30, 50, 10);
+  vec3 lightDir = normalize(lightPos - FragPos);
+  vec3 norm = normalize(Normal);
+  float diff = max(dot(norm, lightDir), 0.0);
+
+  outColor *= min(0.3 + diff, 1.0);
+
+
+}
+    )";
+    const Shader vertex_shader(new_vertex_source, GL_VERTEX_SHADER);
+    const Shader fragment_shader(new_fragment_source, GL_FRAGMENT_SHADER);
 
     glAttachShader(cube_shader_program, vertex_shader.gl_ptr);
     glAttachShader(cube_shader_program, fragment_shader.gl_ptr);
