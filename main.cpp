@@ -604,6 +604,13 @@ render(GLFWwindow *window) {
 		  vec3f{0.0, 1.0, 0.0}
 		  );
       }
+      for (int col = 0; col < terrain_width; ++col) {
+        float row_norm = (float)row / terrain_height;
+        draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
+                  scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
+		  vec3f{0.0, 1.0, 0.0}
+		  );
+      }
       // Draw overlay texture
       {
         glBindVertexArray(vaos[0]);
