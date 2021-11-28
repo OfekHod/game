@@ -86,15 +86,24 @@ operator-(vec3f v1, vec3f v2) {
 }
 
 vec3f
+operator+(vec3f v1, vec3f v2) {
+  return vec3f{v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
+}
+
+vec3f
 operator-(vec3f v) {
   return vec3f{-v.x, -v.y, -v.z};
+}
+
+vec3f
+operator*(float scalar, vec3f v) {
+  return vec3f{scalar * v.x, scalar * v.y, scalar * v.z};
 }
 
 float
 dot(vec3f u, vec3f v) {
   return u.x * v.x + u.y * v.y + u.z * v.z;
 }
-
 
 // vx vy vz
 // ux uy uz
@@ -152,4 +161,45 @@ perspective(float fov, float aspect, float near, float far) {
     0                      , 0           , -(2 * far * near) / (far - near), 0
   }};
   // clang-format on
+}
+
+mat4f
+streach_from_to(vec3f p1, vec3f p2, float thikness) {
+  vec3f new_y = p2 - p1;
+  float new_len = len(new_y);
+  vec3f new_x = cross(new_y, vec3f{0, 1, 0});
+  vec3f new_z = cross(new_x, new_y);
+  new_y = cross(new_z, new_x);
+
+  new_y = normalized(new_y);
+  new_x = normalized(new_x);
+  new_z = normalized(new_z);
+
+  // clang-format off
+  mat4f rot = mat4f{{
+	  new_x.x, new_x.y, new_x.z, 0.0,
+	  new_y.x, new_y.y, new_y.z, 0.0,
+	  new_z.x, new_z.y, new_z.z, 0.0,
+	  0.0    , 0.0    , 0.0    , 1.0
+  }};
+  // clang-format on
+
+  vec3f middle = p1 + 0.5 * (p2 - p1);
+  mat4f trans = diagonal(1.0, 1.0, 1.0, 1.0);
+  trans.elements[12] = middle.x;
+  trans.elements[13] = middle.y;
+  trans.elements[14] = middle.z;
+
+  return trans * rot * diagonal(thikness, new_len, thikness, 1.0);
+}
+
+vec3f
+operator*(const mat4f &m, const vec3f &v) {
+  const float* me = m.elements;
+  return vec3f{me[0 * 4 + 0] * v.x + me[1 * 4 + 0] * v.y + me[2 * 4 + 0] * v.z +
+                   me[3 * 4 + 0],
+               me[0 * 4 + 1] * v.x + me[1 * 4 + 1] * v.y + me[2 * 4 + 1] * v.z +
+                   me[3 * 4 + 1],
+               me[0 * 4 + 2] * v.x + me[1 * 4 + 2] * v.y + me[2 * 4 + 2] * v.z +
+                   me[3 * 4 + 2]};
 }

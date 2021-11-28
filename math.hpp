@@ -29,6 +29,9 @@ rotation(vec3f u, float theta);
 
 mat4f
 operator*(const mat4f &m1, const mat4f &m2);
+
+vec3f operator*(const mat4f& m, const vec3f& v);
+
 constexpr float pi = 3.14159265358979323846F;
 constexpr float deg2rad = pi / 180.0F;
 constexpr float rad2deg = 180.0F / pi;
@@ -38,3 +41,6 @@ look_at(vec3f eye, vec3f center, vec3f up);
 
 mat4f
 perspective(float fov, float aspect, float near, float far);
+
+mat4f
+streach_from_to(vec3f p1, vec3f p2, float thikness);

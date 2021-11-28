@@ -11,7 +11,6 @@
 #include <array>
 #include <chrono>
 
-
 typedef std::chrono::high_resolution_clock::time_point time_point;
 
 time_point
@@ -70,14 +69,16 @@ constexpr int screen_height = 800;
 void
 render(GLFWwindow *window) {
 
-  GLuint vaos[2];
-  glGenVertexArrays(2, vaos);
+  GLuint debug_line_program = glCreateProgram();
+
+  GLuint vaos[3];
+  glGenVertexArrays(3, vaos);
   glBindVertexArray(vaos[0]);
   GLuint overlay_shader_program = glCreateProgram();
   GLuint overlay_texture;
   glGenTextures(1, &overlay_texture);
 
-  // Overlay texture
+  // Define Overlay texture
   {
     glBindTexture(GL_TEXTURE_2D, overlay_texture);
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -120,10 +121,10 @@ render(GLFWwindow *window) {
     }
     Shader vertex_shader = Shader(R"glsl(
         #version 150 core
-        
+
         in vec2 position;
         in vec2 uv;
-        
+
         out vec2 Texcoord;
         void
         main() {
@@ -137,9 +138,9 @@ render(GLFWwindow *window) {
         #version 150 core
         out vec4 outColor;
         in vec2 Texcoord;
-        
+
         uniform sampler2D tex;
-        
+
         void
         main() {
           vec4 c = texture(tex, Texcoord);
@@ -209,7 +210,7 @@ render(GLFWwindow *window) {
   verts_content.texcoords = c_coords;
   verts_content.normals = c_normals;
 
-  GLuint elements[6 * 6];
+  GLuint cube_elements[6 * 6];
   {
     int ver_out = 0;
     int el_out = 0;
@@ -227,7 +228,7 @@ render(GLFWwindow *window) {
       int c = a + 2;
       int d = a + 3;
       for (int x : {a, b, c, c, d, a}) {
-        elements[el_out++] = x;
+        cube_elements[el_out++] = x;
       }
     }
   }
@@ -239,7 +240,7 @@ render(GLFWwindow *window) {
 
   float attr[n_verts * attr_size];
 
-  [&attr, &verts_content] {
+  {
     size_t attr_idx = 0;
     for (size_t vert_idx = 0; vert_idx < verts_content.size; vert_idx++) {
       vec3f *vert = &verts_content.verts[vert_idx];
@@ -257,10 +258,10 @@ render(GLFWwindow *window) {
       attr[attr_idx++] = normal->y;
       attr[attr_idx++] = normal->z;
     }
-  }();
+  };
 
   // Pass cube to opengl (attr for verts and elements for connections)
-  [&attr, &elements] {
+  [&attr, &cube_elements] {
     GLuint arr[2];
     glGenBuffers(2, arr);
 
@@ -270,7 +271,7 @@ render(GLFWwindow *window) {
 
     const GLuint ebo = arr[1];
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements,
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_elements), cube_elements,
                  GL_STATIC_DRAW);
   }();
 
@@ -280,19 +281,19 @@ render(GLFWwindow *window) {
   {
     const char *new_vertex_source = R"glsl(
         #version 150 core
-        
+
         in vec3 position;
         in vec2 texcoord;
         in vec3 normal;
-        
+
         out vec2 Texcoord;
         out vec3 FragPos;
         out vec3 Normal;
-        
+
         uniform mat4 trans;
         uniform mat4 view;
         uniform mat4 proj;
-        
+
         void
         main() {
           Texcoord = texcoord;
@@ -304,26 +305,25 @@ render(GLFWwindow *window) {
 
     const char *new_fragment_source = R"glsl(
         #version 150 core
-        uniform float inter;
-        
+
         in vec2 Texcoord;
         in vec3 Normal;
         in vec3 FragPos;
-        
+
         out vec4 outColor;
-        
+
         uniform sampler2D tex;
-        
+
         void
         main() {
           vec4 color_tex = texture(tex, Texcoord);
           outColor = color_tex;
-        
+
           vec3 lightPos = vec3(30, 50, 10);
           vec3 lightDir = normalize(lightPos - FragPos);
           vec3 norm = normalize(Normal);
           float diff = max(dot(norm, lightDir), 0.0);
-        
+
           outColor *= min(0.3 + diff, 1.0);
         }
     )glsl";
@@ -365,8 +365,8 @@ render(GLFWwindow *window) {
     size_t height = 2;
     // clang-format off
     uint8_t pixels[12] = {
-	    0  , 255, 255,     255, 255, 0,
-	    255, 0  , 255,     0, 0  , 255
+	    0  , 100, 100,     100, 100, 0,
+	    100, 0  , 100,     0, 0  , 100
     };
     // clang-format on
 
@@ -380,13 +380,78 @@ render(GLFWwindow *window) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   };
+  // Debug lines
+  {
+    glUseProgram(debug_line_program);
+    glBindVertexArray(vaos[2]);
+
+    // clang-format on
+    GLuint arr[2];
+    glGenBuffers(2, arr);
+
+    {
+      float attrs[n_verts * 3];
+      for (int i = 0; i < n_verts; ++i) {
+        attrs[i * 3 + 0] = verts_content.verts[i].x;
+        attrs[i * 3 + 1] = verts_content.verts[i].y;
+        attrs[i * 3 + 2] = verts_content.verts[i].z;
+      }
+      GLuint vbo = arr[0];
+      glBindBuffer(GL_ARRAY_BUFFER, vbo);
+      glBufferData(GL_ARRAY_BUFFER, sizeof(attrs), attrs, GL_STATIC_DRAW);
+    }
+
+    {
+      GLuint ebo = arr[1];
+      glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+      glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_elements),
+                   cube_elements, GL_STATIC_DRAW);
+    }
+    Shader vertex_shader = Shader(R"glsl(
+            #version 150 core
+            in vec3 position;
+
+            uniform mat4 trans;
+            uniform mat4 view;
+            uniform mat4 proj;
+
+            void
+            main() {
+              gl_Position = proj * view * trans * vec4(position, 1.0);
+            }
+	)glsl",
+                                  GL_VERTEX_SHADER);
+
+    Shader fragment_shader = Shader(R"glsl(
+            #version 150 core
+
+            uniform vec3 inColor;
+	    out vec4 outColor;
+            void
+            main() {
+              outColor = vec4(inColor, 1.0);
+            }
+        )glsl",
+                                    GL_FRAGMENT_SHADER);
+
+    glAttachShader(debug_line_program, vertex_shader.gl_ptr);
+    glAttachShader(debug_line_program, fragment_shader.gl_ptr);
+    glBindFragDataLocation(debug_line_program, 0, "outColorי");
+    glLinkProgram(debug_line_program);
+    glUseProgram(debug_line_program);
+
+    glBindVertexArray(vaos[2]);
+    GLuint pos_attrib = glGetAttribLocation(debug_line_program, "position");
+    int attr_size = sizeof(float) * 3;
+    glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, attr_size, 0);
+    glEnableVertexAttribArray(pos_attrib);
+  }
 
   {
-    size_t el_size = std::size(elements);
+    size_t el_size = std::size(cube_elements);
     GLint uniTrans = glGetUniformLocation(cube_shader_program, "trans");
     GLuint uniView = glGetUniformLocation(cube_shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_shader_program, "proj");
-    GLint inter = glGetUniformLocation(cube_shader_program, "inter");
 
     time_point t_start = now();
 
@@ -395,8 +460,8 @@ render(GLFWwindow *window) {
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 128;
-    int terrain_height = 128;
+    int terrain_width = 50;
+    int terrain_height = 50;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
 
@@ -432,24 +497,25 @@ render(GLFWwindow *window) {
 
       time_point t_now = now();
       float time = time_between(t_start, t_now);
-      glUniform1f(inter, time);
 
       //--------------------------------------------------
       // Camera setup
       //--------------------------------------------------
+      mat4f view;
+      mat4f proj;
       {
-        // clang-format off
-	mat4f view =  look_at(
-			vec3f{scale_f * cosf(rot_f), 0.7F * scale_f,
-			scale_f * sinf(rot_f)},
-			vec3f{0.0F, 0.0F, 0.0F},
-			vec3f{0.0F, 1.0F, 0.0F});
-        // clang-format on
 
+        // clang-format off
+        view =  look_at(
+        		vec3f{scale_f * cosf(rot_f), 0.7F * scale_f,
+        		scale_f * sinf(rot_f)},
+        		vec3f{0.0F, 0.0F, 0.0F},
+        		vec3f{0.0F, 1.0F, 0.0F});
+        // clang-format on
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
-        mat4f proj = perspective(
-            45.0F * deg2rad, float(screen_width) / screen_height, 0.5f, 50.F);
+        proj = perspective(45.0F * deg2rad, float(screen_width) / screen_height,
+                           0.5f, 50.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
@@ -463,14 +529,17 @@ render(GLFWwindow *window) {
       glBindVertexArray(vaos[1]);
       // mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
       glEnable(GL_DEPTH_TEST);
+      float scale = 6.0F;
+      mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
+
+      float w_pix = 1.0F / terrain_width;
+      float h_pix = 1.0F / terrain_height;
+
       for (int row = 0; row < terrain_height; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
           {
             float row_norm = (float)row / terrain_height;
             float col_norm = (float)col / terrain_width;
-
-            float w_pix = 1.0F / terrain_width;
-            float h_pix = 1.0F / terrain_height;
 
             vec3f centers[] = {{0.5, 0.5, 1.5},
                                {0.3, 0.7, 1.4},
@@ -498,8 +567,6 @@ render(GLFWwindow *window) {
             trans.elements[13] = acc_val * 0.5F;
             trans.elements[14] = col_norm - 0.5;
 
-            float scale = 6.0F;
-            mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
             trans = scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           }
@@ -507,14 +574,45 @@ render(GLFWwindow *window) {
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
         }
       }
+
+      // Draw a debug "line"
+      auto draw_line = [&](vec3f p1, vec3f p2, vec3f color) {
+        glDisable(GL_DEPTH_TEST);
+
+        glUseProgram(debug_line_program);
+        glBindVertexArray(vaos[2]);
+
+        GLint uniTrans = glGetUniformLocation(debug_line_program, "trans");
+        GLuint uniView = glGetUniformLocation(debug_line_program, "view");
+        GLint uniProj = glGetUniformLocation(debug_line_program, "proj");
+        GLint uniColor = glGetUniformLocation(debug_line_program, "inColor");
+
+        mat4f transD = streach_from_to(p1, p2, 0.01);
+
+        glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transD.elements);
+        glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
+        glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
+        glUniform3f(uniColor, color.x, color.y, color.z);
+
+        glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
+      };
+
+      for (int row = 0; row < terrain_height; ++row) {
+        float row_norm = (float)row / terrain_height;
+        draw_line(scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F},
+                  scale_mat * vec3f{0.5F - w_pix, 0, row_norm - 0.5F},
+		  vec3f{0.0, 1.0, 0.0}
+		  );
+      }
       // Draw overlay texture
-      glBindVertexArray(vaos[0]);
-      glDisable(GL_DEPTH_TEST);
-      glBindTexture(GL_TEXTURE_2D, overlay_texture);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_height, 0,
-                   GL_RED, GL_FLOAT, terrain_vals);
-      glUseProgram(overlay_shader_program);
-      glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      {
+        glBindVertexArray(vaos[0]);
+        glBindTexture(GL_TEXTURE_2D, overlay_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_height, 0,
+                     GL_RED, GL_FLOAT, terrain_vals);
+        glUseProgram(overlay_shader_program);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+      }
 
       glfwSwapBuffers(window);
       glfwPollEvents();
