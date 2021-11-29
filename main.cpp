@@ -365,8 +365,8 @@ render(GLFWwindow *window) {
     size_t height = 2;
     // clang-format off
     uint8_t pixels[12] = {
-	    0  , 100, 100,     100, 100, 0,
-	    100, 0  , 100,     0, 0  , 100
+	    0  , 150, 150,     150, 150, 0,
+	    150, 0  , 150,     0, 0  , 150
     };
     // clang-format on
 
@@ -465,7 +465,21 @@ render(GLFWwindow *window) {
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
 
+    bool debug_overlay = true;
+    KeyState g_state = KeyState::KeyUp;
+
     while (!glfwWindowShouldClose(window)) {
+
+      double mouse_x, mouse_y;
+      glfwGetCursorPos(window, &mouse_x, &mouse_y);
+      mouse_x = mouse_x / (screen_width * 0.5F) - 1.0F;
+      mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
+
+      g_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_G));
+
+      if (g_state == KeyState::KeyPressed) {
+        debug_overlay = !debug_overlay;
+      }
 
       glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
@@ -503,12 +517,14 @@ render(GLFWwindow *window) {
       //--------------------------------------------------
       mat4f view;
       mat4f proj;
+      vec3f cam_pos{scale_f * cosf(rot_f), 0.7F * scale_f,
+                    scale_f * sinf(rot_f)};
+      //      cam_pos = vec3f{0, 1, 10};
       {
 
         // clang-format off
         view =  look_at(
-        		vec3f{scale_f * cosf(rot_f), 0.7F * scale_f,
-        		scale_f * sinf(rot_f)},
+        		cam_pos,
         		vec3f{0.0F, 0.0F, 0.0F},
         		vec3f{0.0F, 1.0F, 0.0F});
         // clang-format on
@@ -519,6 +535,12 @@ render(GLFWwindow *window) {
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
+
+      mat4f view2 = copy(&view);
+      view2.elements[12] = 0;
+      view2.elements[13] = 0;
+      view2.elements[14] = 0;
+      mat4f invVP = inverse(proj * view2);
 
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -575,10 +597,9 @@ render(GLFWwindow *window) {
         }
       }
 
+      glDisable(GL_DEPTH_TEST);
       // Draw a debug "line"
       auto draw_line = [&](vec3f p1, vec3f p2, vec3f color) {
-        glDisable(GL_DEPTH_TEST);
-
         glUseProgram(debug_line_program);
         glBindVertexArray(vaos[2]);
 
@@ -597,19 +618,39 @@ render(GLFWwindow *window) {
         glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
       };
 
-      for (int row = 0; row < terrain_height; ++row) {
-        float row_norm = (float)row / terrain_height;
-        draw_line(scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F},
-                  scale_mat * vec3f{0.5F - w_pix, 0, row_norm - 0.5F},
-		  vec3f{0.0, 1.0, 0.0}
-		  );
-      }
-      for (int col = 0; col < terrain_width; ++col) {
-        float row_norm = (float)row / terrain_height;
-        draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
-                  scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
-		  vec3f{0.0, 1.0, 0.0}
-		  );
+      if (debug_overlay) {
+        for (int row = 0; row < terrain_height; ++row) {
+          float row_norm = (float)row / terrain_height;
+          draw_line(scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F},
+                    scale_mat * vec3f{0.5F - w_pix, 0, row_norm - 0.5F},
+                    vec3f{0.0, 1.0, 0.0});
+        }
+        for (int col = 0; col < terrain_width; ++col) {
+          float col_norm = (float)col / terrain_width;
+          draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
+                    scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
+                    vec3f{0.0, 1.0, 0.0});
+        }
+
+        vec3f screen_pos{(float)mouse_x, -(float)mouse_y, 1.0F};
+
+        vec3f dir = invVP * screen_pos;
+        dir = normalized(dir);
+
+        vec3f pp = cam_pos + 7 * dir;
+
+        vec3f adds[] = {vec3f{1, 0, 0},  vec3f{-1, 0, 0}, vec3f{0, 0, 1},
+                        vec3f{0, 0, -1}, vec3f{0, -1, 0}, vec3f{0, 1, 0}};
+
+        for (vec3f add : adds) {
+          draw_line(pp, pp + 0.1 * add, vec3f{0.0, 0.0, 1.0});
+        }
+
+	vec3f dir_flat{dir.x, 0, dir.z};
+	vec3f pos_flat{cam_pos.x, 0, cam_pos.z};
+
+	draw_line(pos_flat, pos_flat + 100 * dir_flat,
+			vec3f{1.0, 1.0, 0});
       }
       // Draw overlay texture
       {
