@@ -314,11 +314,16 @@ render(GLFWwindow *window) {
 
         uniform sampler2D tex;
 	uniform bool debug;
+	uniform bool chosen;
 
         void
         main() {
           vec4 color_tex = texture(tex, Texcoord);
           outColor = color_tex;
+
+	  if (chosen) {
+	    outColor = vec4(0.0, 0.0, 1.0, 1.0);
+	  }
 
           vec3 lightPos = vec3(30, 50, 10);
           vec3 lightDir = normalize(lightPos - FragPos);
@@ -458,6 +463,7 @@ render(GLFWwindow *window) {
     GLuint uniView = glGetUniformLocation(cube_shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_shader_program, "proj");
     GLint uniDebug = glGetUniformLocation(cube_shader_program, "debug");
+    GLint uniChosen = glGetUniformLocation(cube_shader_program, "chosen");
 
     time_point t_start = now();
 
@@ -465,8 +471,8 @@ render(GLFWwindow *window) {
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 10;
-    int terrain_height = 10;
+    int terrain_width = 100;
+    int terrain_height = 100;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
 
@@ -554,64 +560,7 @@ render(GLFWwindow *window) {
         dir = normalized(dir);
       }
 
-      glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
-      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-      //--------------------------------------------------
-      // Objects position
-      //--------------------------------------------------
-      glBindVertexArray(vaos[1]);
-      // mat4f rot = rotation(vec3f{0.0F, 1.0F, 0.0F}, rot_f);
-      glEnable(GL_DEPTH_TEST);
-      float scale = 6.0F;
-      mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
-
-      float w_pix = 1.0F / terrain_width;
-      float h_pix = 1.0F / terrain_height;
-
-      for (int row = 0; row < terrain_height; ++row) {
-        for (int col = 0; col < terrain_width; ++col) {
-          {
-            float row_norm = (float)row / terrain_height;
-            float col_norm = (float)col / terrain_width;
-
-            vec3f centers[] = {{0.5, 0.5, 1.5},
-                               {0.3, 0.7, 1.4},
-                               {0.2, 0.3, 0.8},
-                               {0.8, 0.2, 2.4},
-                               {0.7, 0.8, 0.8}};
-
-            float acc_val = 0;
-            for (auto center : centers) {
-              float r = sqrtf(powf(col_norm - center.x, 2) +
-                              powf(row_norm - center.y, 2));
-              float tt = time * center.z;
-
-              float val_f = powf((1 - r), 7) *
-                            (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
-                             0.1F * sinf(r * pi * 60 + 10 + tt * 5));
-              val_f = val_f * 0.8F;
-              acc_val += val_f;
-            }
-            acc_val *= 0.5;
-            terrain_vals[row * terrain_width + col] = acc_val;
-
-            mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
-            trans.elements[12] = row_norm - 0.5;
-            trans.elements[13] = acc_val * 0.5F;
-            trans.elements[14] = col_norm - 0.5;
-
-            trans = scale_mat * trans;
-            glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
-            glUniform1i(uniDebug, debug_overlay);
-          }
-
-          glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
-        }
-      }
-
-      glDisable(GL_DEPTH_TEST);
-      // Draw a debug "line"
+      // Inner draw fucntions
       auto draw_line = [&](vec3f p1, vec3f p2, vec3f color) {
         glUseProgram(debug_line_program);
         glBindVertexArray(vaos[2]);
@@ -650,90 +599,171 @@ render(GLFWwindow *window) {
           draw_line(p, p + scale * add, color);
         }
       };
+      glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      if (debug_overlay) {
+      float scale = 6.0F;
+      mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
+
+      float w_pix = 1.0F / terrain_width;
+      float h_pix = 1.0F / terrain_height;
+
+      // Define terrain
+      for (int row = 0; row < terrain_height; ++row) {
+        for (int col = 0; col < terrain_width; ++col) {
+          {
+            float row_norm = (float)row / terrain_height;
+            float col_norm = (float)col / terrain_width;
+
+            vec3f centers[] = {{0.5, 0.5, 1.5},
+                               {0.3, 0.7, 1.4},
+                               {0.2, 0.3, 0.8},
+                               {0.8, 0.2, 2.4},
+                               {0.7, 0.8, 0.8}};
+
+            float acc_val = 0;
+            for (auto center : centers) {
+              float r = sqrtf(powf(col_norm - center.x, 2) +
+                              powf(row_norm - center.y, 2));
+              float tt = time * center.z;
+
+              float val_f = powf((1 - r), 7) *
+                            (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
+                             0.1F * sinf(r * pi * 60 + 10 + tt * 5));
+              val_f = val_f * 0.8F;
+              acc_val += val_f;
+            }
+            acc_val *= 0.5;
+            terrain_vals[row * terrain_width + col] = acc_val;
+          }
+        }
+      }
+
+      glEnable(GL_DEPTH_TEST);
+      glDepthRange(0, 0.01); // For overlay drawings
+
+      // Find chosen terrain box
+
+      int chosen_row = -1;
+      int chosen_col = -1;
+      {
         vec3f cam_pos_2d = vec3f{cam_pos.x, cam_pos.z, 1.0F};
         vec3f cam_pos_end = cam_pos + 10 * dir;
-
         vec3f cam_pos_end_2d = vec3f{cam_pos_end.x, cam_pos_end.z, 1.0F};
         vec3f cam_line = cross(cam_pos_2d, cam_pos_end_2d);
 
-        {
-          bool switch_row_col = false;
-          float _terrain_height = terrain_height;
-          float _terrain_width = terrain_width;
-          float _w_pix = w_pix;
-          for (int times = 0; times < 2; ++times) {
-            if (switch_row_col) {
-              _terrain_height = terrain_width;
-              _terrain_width = terrain_height;
-              _w_pix = h_pix;
-            }
-            for (int col = 0; col < _terrain_height; ++col) {
-              float row_norm = (float)col / _terrain_height;
-              vec3f p0 = scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F};
-              vec3f p1 = scale_mat * vec3f{0.5F - _w_pix, 0, row_norm - 0.5F};
+        bool switch_row_col = false;
+        float _terrain_height = terrain_height;
+        float _terrain_width = terrain_width;
+        float _w_pix = w_pix;
 
-              if (switch_row_col) {
-                p0 = scale_mat * vec3f{row_norm - 0.5F, 0, -0.5F};
-                p1 = scale_mat * vec3f{row_norm - 0.5F, 0, 0.5F - _w_pix};
-              }
-
-              draw_line(p0, p1, vec3f{0.0, 1.0, 0.0});
-
-              vec3f p0_2d = vec3f{p0.x, p0.z, 1.0F};
-              vec3f p1_2d = vec3f{p1.x, p1.z, 1.0F};
-
-              vec3f curr_line = cross(p0_2d, p1_2d);
-
-              vec3f inter_2d = cross(curr_line, cam_line);
-
-              vec3f inter{inter_2d.x / inter_2d.z, 0, inter_2d.y / inter_2d.z};
-              float sign = dot(inter - p0, p1 - p0) > 0 ? 1 : -1;
-              float inter_len = sign * len(inter - p0) / (scale * _w_pix);
-              int row = int(roundf(inter_len));
-
-              glEnable(GL_DEPTH_TEST);
-              if (0 <= row && row < _terrain_width) {
-                float val_f = terrain_vals[row * terrain_width + col];
-                if (switch_row_col) {
-                  val_f = terrain_vals[col * terrain_width + row];
-                }
-                vec3f inter2 = inter;
-                inter.y = val_f;
-                draw_line(inter2, inter, vec3f{1, 1, 1});
-
-                draw_star(inter, 0.05, vec3f{1, 0, 0});
-
-		vec3f vvv = normalized(cam_pos - inter);
-              }
-              glDisable(GL_DEPTH_TEST);
-            }
-            switch_row_col = true;
+        float max_dot = 0;
+        vec3f chosen_p = {-100, -100, -100};
+        for (int times = 0; times < 2; ++times) {
+          if (switch_row_col) {
+            _terrain_height = terrain_width;
+            _terrain_width = terrain_height;
+            _w_pix = h_pix;
           }
+          for (int col = 0; col < _terrain_height; ++col) {
+            float row_norm = (float)col / _terrain_height;
+            vec3f p0 = scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F};
+            vec3f p1 = scale_mat * vec3f{0.5F - _w_pix, 0, row_norm - 0.5F};
+
+            if (switch_row_col) {
+              p0 = scale_mat * vec3f{row_norm - 0.5F, 0, -0.5F};
+              p1 = scale_mat * vec3f{row_norm - 0.5F, 0, 0.5F - _w_pix};
+            }
+
+            if (debug_overlay) {
+              draw_line(p0, p1, vec3f{0.0, 1.0, 0.0});
+            }
+
+            vec3f p0_2d = vec3f{p0.x, p0.z, 1.0F};
+            vec3f p1_2d = vec3f{p1.x, p1.z, 1.0F};
+
+            vec3f curr_line = cross(p0_2d, p1_2d);
+
+            vec3f inter_2d = cross(curr_line, cam_line);
+
+            vec3f inter{inter_2d.x / inter_2d.z, 0, inter_2d.y / inter_2d.z};
+            float sign = dot(inter - p0, p1 - p0) > 0 ? 1 : -1;
+            float inter_len = sign * len(inter - p0) / (scale * _w_pix);
+            int row = int(roundf(inter_len));
+
+            if (0 <= row && row < _terrain_width) {
+              float val_f = terrain_vals[row * terrain_width + col];
+              if (switch_row_col) {
+                val_f = terrain_vals[col * terrain_width + row];
+              }
+              inter.y = val_f;
+              if (debug_overlay) {
+                draw_star(inter, 0.05, vec3f{1, 0, 0});
+              }
+
+              vec3f vvv = normalized(cam_pos - inter);
+              float curr_dot = dot(vvv, -dir);
+
+              if (curr_dot > max_dot) {
+                chosen_p = inter;
+                max_dot = curr_dot;
+
+                if (!switch_row_col) {
+                  chosen_row = row;
+                  chosen_col = col;
+                } else {
+                  chosen_row = col;
+                  chosen_col = row;
+                }
+              }
+            }
+          }
+          switch_row_col = true;
         }
-        // for (int col = 0; col < terrain_width; ++col) {
-        //   float col_norm = (float)col / terrain_width;
-        //   draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
-        //             scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
-        //             vec3f{0.0, 1.0, 0.0});
-        // }
 
-        // Plot camera ray
-        {
-          vec3f pp = cam_pos + 7 * dir;
-
-          draw_star(pp, 0.5, vec3f{0, 0, 1});
-
-          vec3f dir_flat{dir.x, 0, dir.z};
-          vec3f pos_flat{cam_pos.x, 0, cam_pos.z};
-
-          //          draw_line(pos_flat, pos_flat + 100 * dir_flat,
-          //          vec3f{1.0, 1.0, 0});
+        if (debug_overlay) {
+          draw_star(chosen_p, 0.3, vec3f{0.3, 0.3, 0.1});
         }
       }
+
+      // Draw terrain
+      glDepthRange(0.01, 1.0);
+      glBindTexture(GL_TEXTURE_2D, terrain_texture);
+      glUseProgram(cube_shader_program);
+      glBindVertexArray(vaos[1]);
+      for (int row = 0; row < terrain_height; ++row) {
+        for (int col = 0; col < terrain_width; ++col) {
+          float row_norm = (float)row / terrain_height;
+          float col_norm = (float)col / terrain_width;
+          float acc_val = terrain_vals[row * terrain_width + col];
+          mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
+          trans.elements[12] = row_norm - 0.5;
+          trans.elements[13] = acc_val * 0.5F;
+          trans.elements[14] = col_norm - 0.5;
+
+          trans = scale_mat * trans;
+          glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
+          glUniform1i(uniDebug, debug_overlay);
+
+          bool is_chosen = false;
+          for (int add_row = -1; add_row <= 1; ++add_row) {
+            for (int add_col = -1; add_col <= 1; ++add_col) {
+              if ((row + add_row) == chosen_row &&
+                  (col + add_col) == chosen_col) {
+                is_chosen = true;
+              }
+            }
+          }
+          // bool is_chosen = (row == chosen_row && col == chosen_col);
+          glUniform1i(uniChosen, is_chosen);
+
+          glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
+        }
+      }
+
       // Draw overlay texture
       {
+        glDisable(GL_DEPTH_TEST);
         glBindVertexArray(vaos[0]);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_height, 0,

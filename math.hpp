@@ -74,3 +74,6 @@ len(vec3f v);
 
 float
 dot(vec3f u, vec3f v);
+
+vec3f
+operator-(vec3f v);
