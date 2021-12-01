@@ -65,3 +65,12 @@ void transpose(mat4f *mat);
 
 mat4f
 copy(mat4f *m);
+
+vec3f
+cross(vec3f v, vec3f u);
+
+float
+len(vec3f v);
+
+float
+dot(vec3f u, vec3f v);

@@ -313,6 +313,7 @@ render(GLFWwindow *window) {
         out vec4 outColor;
 
         uniform sampler2D tex;
+	uniform bool debug;
 
         void
         main() {
@@ -325,6 +326,10 @@ render(GLFWwindow *window) {
           float diff = max(dot(norm, lightDir), 0.0);
 
           outColor *= min(0.3 + diff, 1.0);
+
+	  if (debug) {
+	    outColor *= 0.5;
+	  }
         }
     )glsl";
     const Shader vertex_shader(new_vertex_source, GL_VERTEX_SHADER);
@@ -365,8 +370,8 @@ render(GLFWwindow *window) {
     size_t height = 2;
     // clang-format off
     uint8_t pixels[12] = {
-	    0  , 150, 150,     150, 150, 0,
-	    150, 0  , 150,     0, 0  , 150
+	    0  , 255, 255,     255, 255, 0,
+	    255, 0  , 255,     0, 0  , 255
     };
     // clang-format on
 
@@ -452,16 +457,16 @@ render(GLFWwindow *window) {
     GLint uniTrans = glGetUniformLocation(cube_shader_program, "trans");
     GLuint uniView = glGetUniformLocation(cube_shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_shader_program, "proj");
+    GLint uniDebug = glGetUniformLocation(cube_shader_program, "debug");
 
     time_point t_start = now();
 
-    KeyState space = KeyState::KeyUp;
     float sign = 1;
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 50;
-    int terrain_height = 50;
+    int terrain_width = 10;
+    int terrain_height = 10;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
 
@@ -517,8 +522,8 @@ render(GLFWwindow *window) {
       //--------------------------------------------------
       mat4f view;
       mat4f proj;
-      vec3f cam_pos{scale_f * cosf(rot_f), 0.7F * scale_f,
-                    scale_f * sinf(rot_f)};
+      vec3f cam_pos{scale_f * sinf(rot_f), 0.7F * scale_f,
+                    scale_f * cosf(rot_f)};
       //      cam_pos = vec3f{0, 1, 10};
       {
 
@@ -536,11 +541,18 @@ render(GLFWwindow *window) {
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
 
-      mat4f view2 = copy(&view);
-      view2.elements[12] = 0;
-      view2.elements[13] = 0;
-      view2.elements[14] = 0;
-      mat4f invVP = inverse(proj * view2);
+      // Camera ray
+      vec3f dir;
+      {
+        mat4f view2 = copy(&view);
+        view2.elements[12] = 0;
+        view2.elements[13] = 0;
+        view2.elements[14] = 0;
+        mat4f invVP = inverse(proj * view2);
+        vec3f screen_pos{(float)mouse_x, -(float)mouse_y, 1.0F};
+        dir = invVP * screen_pos;
+        dir = normalized(dir);
+      }
 
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -591,6 +603,7 @@ render(GLFWwindow *window) {
 
             trans = scale_mat * trans;
             glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
+            glUniform1i(uniDebug, debug_overlay);
           }
 
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
@@ -618,39 +631,106 @@ render(GLFWwindow *window) {
         glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
       };
 
-      if (debug_overlay) {
-        for (int row = 0; row < terrain_height; ++row) {
-          float row_norm = (float)row / terrain_height;
-          draw_line(scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F},
-                    scale_mat * vec3f{0.5F - w_pix, 0, row_norm - 0.5F},
-                    vec3f{0.0, 1.0, 0.0});
+      auto draw_star = [&](vec3f p, float scale, vec3f color) {
+        vec3f adds[3 * 3 * 3 - 1];
+        int idx = 0;
+        for (int i = 0; i < 3; ++i) {
+          for (int j = 0; j < 3; ++j) {
+            for (int k = 0; k < 3; ++k) {
+              float x = (float)(i - 1);
+              float y = (float)(j - 1);
+              float z = (float)(k - 1);
+              if (!(x == 0 && y == 0 && z == 0)) {
+                adds[idx++] = vec3f{x, y, z};
+              }
+            }
+          }
         }
-        for (int col = 0; col < terrain_width; ++col) {
-          float col_norm = (float)col / terrain_width;
-          draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
-                    scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
-                    vec3f{0.0, 1.0, 0.0});
-        }
-
-        vec3f screen_pos{(float)mouse_x, -(float)mouse_y, 1.0F};
-
-        vec3f dir = invVP * screen_pos;
-        dir = normalized(dir);
-
-        vec3f pp = cam_pos + 7 * dir;
-
-        vec3f adds[] = {vec3f{1, 0, 0},  vec3f{-1, 0, 0}, vec3f{0, 0, 1},
-                        vec3f{0, 0, -1}, vec3f{0, -1, 0}, vec3f{0, 1, 0}};
-
         for (vec3f add : adds) {
-          draw_line(pp, pp + 0.1 * add, vec3f{0.0, 0.0, 1.0});
+          draw_line(p, p + scale * add, color);
         }
+      };
 
-	vec3f dir_flat{dir.x, 0, dir.z};
-	vec3f pos_flat{cam_pos.x, 0, cam_pos.z};
+      if (debug_overlay) {
+        vec3f cam_pos_2d = vec3f{cam_pos.x, cam_pos.z, 1.0F};
+        vec3f cam_pos_end = cam_pos + 10 * dir;
 
-	draw_line(pos_flat, pos_flat + 100 * dir_flat,
-			vec3f{1.0, 1.0, 0});
+        vec3f cam_pos_end_2d = vec3f{cam_pos_end.x, cam_pos_end.z, 1.0F};
+        vec3f cam_line = cross(cam_pos_2d, cam_pos_end_2d);
+
+        {
+          bool switch_row_col = false;
+          float _terrain_height = terrain_height;
+          float _terrain_width = terrain_width;
+          float _w_pix = w_pix;
+          for (int times = 0; times < 2; ++times) {
+            if (switch_row_col) {
+              _terrain_height = terrain_width;
+              _terrain_width = terrain_height;
+              _w_pix = h_pix;
+            }
+            for (int col = 0; col < _terrain_height; ++col) {
+              float row_norm = (float)col / _terrain_height;
+              vec3f p0 = scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F};
+              vec3f p1 = scale_mat * vec3f{0.5F - _w_pix, 0, row_norm - 0.5F};
+
+              if (switch_row_col) {
+                p0 = scale_mat * vec3f{row_norm - 0.5F, 0, -0.5F};
+                p1 = scale_mat * vec3f{row_norm - 0.5F, 0, 0.5F - _w_pix};
+              }
+
+              draw_line(p0, p1, vec3f{0.0, 1.0, 0.0});
+
+              vec3f p0_2d = vec3f{p0.x, p0.z, 1.0F};
+              vec3f p1_2d = vec3f{p1.x, p1.z, 1.0F};
+
+              vec3f curr_line = cross(p0_2d, p1_2d);
+
+              vec3f inter_2d = cross(curr_line, cam_line);
+
+              vec3f inter{inter_2d.x / inter_2d.z, 0, inter_2d.y / inter_2d.z};
+              float sign = dot(inter - p0, p1 - p0) > 0 ? 1 : -1;
+              float inter_len = sign * len(inter - p0) / (scale * _w_pix);
+              int row = int(roundf(inter_len));
+
+              glEnable(GL_DEPTH_TEST);
+              if (0 <= row && row < _terrain_width) {
+                float val_f = terrain_vals[row * terrain_width + col];
+                if (switch_row_col) {
+                  val_f = terrain_vals[col * terrain_width + row];
+                }
+                vec3f inter2 = inter;
+                inter.y = val_f;
+                draw_line(inter2, inter, vec3f{1, 1, 1});
+
+                draw_star(inter, 0.05, vec3f{1, 0, 0});
+
+		vec3f vvv = normalized(cam_pos - inter);
+              }
+              glDisable(GL_DEPTH_TEST);
+            }
+            switch_row_col = true;
+          }
+        }
+        // for (int col = 0; col < terrain_width; ++col) {
+        //   float col_norm = (float)col / terrain_width;
+        //   draw_line(scale_mat * vec3f{col_norm - 0.5F, 0, -0.5F},
+        //             scale_mat * vec3f{col_norm - 0.5F, 0, 0.5F - h_pix},
+        //             vec3f{0.0, 1.0, 0.0});
+        // }
+
+        // Plot camera ray
+        {
+          vec3f pp = cam_pos + 7 * dir;
+
+          draw_star(pp, 0.5, vec3f{0, 0, 1});
+
+          vec3f dir_flat{dir.x, 0, dir.z};
+          vec3f pos_flat{cam_pos.x, 0, cam_pos.z};
+
+          //          draw_line(pos_flat, pos_flat + 100 * dir_flat,
+          //          vec3f{1.0, 1.0, 0});
+        }
       }
       // Draw overlay texture
       {
