@@ -29,4 +29,4 @@ ELSE()
 ENDIF()
 target_include_directories(app PRIVATE ${GLEW_INCLUDE_DIRS})
 
-target_link_libraries(app ${OPENGL_LIBRARIES} ${GLEW_LIBRARIES} glfw)
+target_link_libraries(app ${OPENGL_LIBRARIES} ${GLEWLIBS} glfw)

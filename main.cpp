@@ -471,7 +471,7 @@ render(GLFWwindow *window) {
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 100;
+    int terrain_width = 20;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
@@ -736,11 +736,14 @@ render(GLFWwindow *window) {
           glUniform1i(uniDebug, debug_overlay);
 
           bool is_chosen = false;
-          for (int add_row = -1; add_row <= 1; ++add_row) {
-            for (int add_col = -1; add_col <= 1; ++add_col) {
-              if ((row + add_row) == chosen_row &&
-                  (col + add_col) == chosen_col) {
-                is_chosen = true;
+          {
+            int s = 2;
+            for (int add_row = -s; add_row <= s; ++add_row) {
+              for (int add_col = -s; add_col <= s; ++add_col) {
+                if ((row + add_row) == chosen_row &&
+                    (col + add_col) == chosen_col) {
+                  is_chosen = true;
+                }
               }
             }
           }
