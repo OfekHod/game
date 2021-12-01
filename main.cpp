@@ -472,9 +472,8 @@ render(GLFWwindow *window) {
     float rot_f = 0;
 
     int terrain_width = 100;
-    int terrain_height = 100;
     float *terrain_vals =
-        (float *)malloc(sizeof(float *) * terrain_width * terrain_height);
+        (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
     bool debug_overlay = true;
     KeyState g_state = KeyState::KeyUp;
@@ -606,13 +605,12 @@ render(GLFWwindow *window) {
       mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
 
       float w_pix = 1.0F / terrain_width;
-      float h_pix = 1.0F / terrain_height;
 
       // Define terrain
-      for (int row = 0; row < terrain_height; ++row) {
+      for (int row = 0; row < terrain_width; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
           {
-            float row_norm = (float)row / terrain_height;
+            float row_norm = (float)row / terrain_width;
             float col_norm = (float)col / terrain_width;
 
             vec3f centers[] = {{0.5, 0.5, 1.5},
@@ -653,26 +651,18 @@ render(GLFWwindow *window) {
         vec3f cam_line = cross(cam_pos_2d, cam_pos_end_2d);
 
         bool switch_row_col = false;
-        float _terrain_height = terrain_height;
-        float _terrain_width = terrain_width;
-        float _w_pix = w_pix;
 
         float max_dot = 0;
         vec3f chosen_p = {-100, -100, -100};
         for (int times = 0; times < 2; ++times) {
-          if (switch_row_col) {
-            _terrain_height = terrain_width;
-            _terrain_width = terrain_height;
-            _w_pix = h_pix;
-          }
-          for (int col = 0; col < _terrain_height; ++col) {
-            float row_norm = (float)col / _terrain_height;
+          for (int col = 0; col < terrain_width; ++col) {
+            float row_norm = (float)col / terrain_width;
             vec3f p0 = scale_mat * vec3f{-0.5F, 0, row_norm - 0.5F};
-            vec3f p1 = scale_mat * vec3f{0.5F - _w_pix, 0, row_norm - 0.5F};
+            vec3f p1 = scale_mat * vec3f{0.5F - w_pix, 0, row_norm - 0.5F};
 
             if (switch_row_col) {
               p0 = scale_mat * vec3f{row_norm - 0.5F, 0, -0.5F};
-              p1 = scale_mat * vec3f{row_norm - 0.5F, 0, 0.5F - _w_pix};
+              p1 = scale_mat * vec3f{row_norm - 0.5F, 0, 0.5F - w_pix};
             }
 
             if (debug_overlay) {
@@ -688,10 +678,10 @@ render(GLFWwindow *window) {
 
             vec3f inter{inter_2d.x / inter_2d.z, 0, inter_2d.y / inter_2d.z};
             float sign = dot(inter - p0, p1 - p0) > 0 ? 1 : -1;
-            float inter_len = sign * len(inter - p0) / (scale * _w_pix);
+            float inter_len = sign * len(inter - p0) / (scale * w_pix);
             int row = int(roundf(inter_len));
 
-            if (0 <= row && row < _terrain_width) {
+            if (0 <= row && row < terrain_width) {
               float val_f = terrain_vals[row * terrain_width + col];
               if (switch_row_col) {
                 val_f = terrain_vals[col * terrain_width + row];
@@ -731,12 +721,12 @@ render(GLFWwindow *window) {
       glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
       glBindVertexArray(vaos[1]);
-      for (int row = 0; row < terrain_height; ++row) {
+      for (int row = 0; row < terrain_width; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
-          float row_norm = (float)row / terrain_height;
+          float row_norm = (float)row / terrain_width;
           float col_norm = (float)col / terrain_width;
           float acc_val = terrain_vals[row * terrain_width + col];
-          mat4f trans = diagonal(w_pix, acc_val, h_pix, 1);
+          mat4f trans = diagonal(w_pix, acc_val, w_pix, 1);
           trans.elements[12] = row_norm - 0.5;
           trans.elements[13] = acc_val * 0.5F;
           trans.elements[14] = col_norm - 0.5;
@@ -766,7 +756,7 @@ render(GLFWwindow *window) {
         glDisable(GL_DEPTH_TEST);
         glBindVertexArray(vaos[0]);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_height, 0,
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_width, 0,
                      GL_RED, GL_FLOAT, terrain_vals);
         glUseProgram(overlay_shader_program);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
