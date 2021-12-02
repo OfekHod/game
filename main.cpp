@@ -471,7 +471,7 @@ render(GLFWwindow *window) {
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 50;
+    int terrain_width = 100;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
@@ -670,13 +670,14 @@ render(GLFWwindow *window) {
 		  chosen_row = row;
 		  chosen_col = col;
 	  }
-	  score = powf(score, 20);
+	  score = powf(score, 1000);
 
 	  if (debug_overlay){
 	  draw_line(pppos, pppos + vec3f{0, score, 0}, vec3f{0.8, 0.9, 0.6});
 	  }
 
         }
+
       }
 
       // Draw terrain
