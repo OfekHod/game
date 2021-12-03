@@ -7,6 +7,8 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <ctime>
+#include <cstdlib>
 
 #include <array>
 #include <chrono>
@@ -471,14 +473,21 @@ render(GLFWwindow *window) {
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 100;
+    int terrain_width = 150;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
-    bool debug_overlay = true;
+    bool debug_overlay = false;
     KeyState g_state = KeyState::KeyUp;
+    KeyState r_state = KeyState::KeyUp;
+    KeyState mouse_state = KeyState::KeyUp;
 
+    vec3f centers_new[100];
+    int n_centers = 0;
+    srand(time(nullptr));
     while (!glfwWindowShouldClose(window)) {
+
+      // User input
 
       double mouse_x, mouse_y;
       glfwGetCursorPos(window, &mouse_x, &mouse_y);
@@ -486,13 +495,19 @@ render(GLFWwindow *window) {
       mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
 
       g_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_G));
+      r_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_R));
+
+      mouse_state = update_kstate(
+          mouse_state, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1));
 
       if (g_state == KeyState::KeyPressed) {
         debug_overlay = !debug_overlay;
       }
 
-      glBindTexture(GL_TEXTURE_2D, terrain_texture);
-      glUseProgram(cube_shader_program);
+      bool add_center = (mouse_state == KeyState::KeyPressed);
+      if (r_state == KeyState::KeyPressed) {
+        n_centers = 0;
+      }
 
       // Zoom in out
       {
@@ -518,6 +533,11 @@ render(GLFWwindow *window) {
         printf("Exit\n");
         exit(0);
       };
+
+      //=========================================
+
+      glBindTexture(GL_TEXTURE_2D, terrain_texture);
+      glUseProgram(cube_shader_program);
 
       time_point t_now = now();
       float time = time_between(t_start, t_now);
@@ -613,25 +633,20 @@ render(GLFWwindow *window) {
             float row_norm = (float)row / terrain_width;
             float col_norm = (float)col / terrain_width;
 
-            vec3f centers[] = {{0.5, 0.5, 1.5},
-                               {0.3, 0.7, 1.4},
-                               {0.2, 0.3, 0.8},
-                               {0.8, 0.2, 2.4},
-                               {0.7, 0.8, 0.8}};
-
             float acc_val = 0;
-            for (auto center : centers) {
+            for (int i = 0; i < n_centers; ++i) {
+              vec3f center = centers_new[i];
               float r = sqrtf(powf(col_norm - center.x, 2) +
                               powf(row_norm - center.y, 2));
               float tt = time * center.z;
 
-              float val_f = powf((1 - r), 7) *
+              float val_f = powf((1 - r), 2) *
                             (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
                              0.1F * sinf(r * pi * 60 + 10 + tt * 5));
-              val_f = val_f * 0.8F;
               acc_val += val_f;
             }
-            acc_val *= 0.5;
+            acc_val *= 0.3;
+            acc_val += 0.1;
             terrain_vals[row * terrain_width + col] = acc_val;
           }
         }
@@ -640,12 +655,10 @@ render(GLFWwindow *window) {
       glEnable(GL_DEPTH_TEST);
       glDepthRange(0, 0.01); // For overlay drawings
       {
-	      // Here comes overlay drawings;
+        // Here comes overlay drawings;
       }
 
       // Find chosen terrain box
-
-
 
       // Mouse shoose box
       glDepthRange(0.01, 1.0);
@@ -658,26 +671,24 @@ render(GLFWwindow *window) {
           float col_norm = (float)col / terrain_width;
           float acc_val = terrain_vals[row * terrain_width + col];
           mat4f trans = diagonal(w_pix, acc_val, w_pix, 1);
-	  
-	  vec3f pppos{ row_norm - 0.5F, acc_val, col_norm - 0.5F };
-	  pppos = scale_mat * pppos;
 
-	  vec3f cam2pos = normalized(pppos - cam_pos);
+          vec3f pppos{row_norm - 0.5F, acc_val, col_norm - 0.5F};
+          pppos = scale_mat * pppos;
 
-	  float score = dot(cam2pos, dir);
-	  if (score > max_score) {
-		  max_score = score;
-		  chosen_row = row;
-		  chosen_col = col;
-	  }
-	  score = powf(score, 1000);
+          vec3f cam2pos = normalized(pppos - cam_pos);
 
-	  if (debug_overlay){
-	  draw_line(pppos, pppos + vec3f{0, score, 0}, vec3f{0.8, 0.9, 0.6});
-	  }
+          float score = dot(cam2pos, dir);
+          if (score > max_score) {
+            max_score = score;
+            chosen_row = row;
+            chosen_col = col;
+          }
+          score = powf(score, 1000);
 
+          if (debug_overlay) {
+            draw_line(pppos, pppos + vec3f{0, score, 0}, vec3f{0.8, 0.9, 0.6});
+          }
         }
-
       }
 
       // Draw terrain
@@ -698,6 +709,12 @@ render(GLFWwindow *window) {
           glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
           glUniform1i(uniDebug, debug_overlay);
 
+          if (row == chosen_row && col == chosen_col) {
+            if (add_center) {
+		    float speed = (float)rand() / (float)(RAND_MAX);
+              centers_new[n_centers++] = vec3f{col_norm, row_norm, speed * 4.5F};
+            }
+          }
           bool is_chosen = false;
           {
             int s = 2;
@@ -710,7 +727,6 @@ render(GLFWwindow *window) {
               }
             }
           }
-          // bool is_chosen = (row == chosen_row && col == chosen_col);
           glUniform1i(uniChosen, is_chosen);
 
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
