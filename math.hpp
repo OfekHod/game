@@ -4,6 +4,13 @@ struct mat4f {
   float elements[16];
 };
 
+struct vec4f {
+  float x;
+  float y;
+  float z;
+  float w;
+};
+
 struct vec3f {
   float x;
   float y;
@@ -14,6 +21,7 @@ struct vec2f {
   float x;
   float y;
 };
+
 
 mat4f
 identity();

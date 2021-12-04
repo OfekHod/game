@@ -7,8 +7,8 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <ctime>
 #include <cstdlib>
+#include <ctime>
 
 #include <array>
 #include <chrono>
@@ -68,6 +68,13 @@ struct VertsContent {
 constexpr int screen_width = 800;
 constexpr int screen_height = 800;
 
+struct Wave {
+  float x;
+  float y;
+  float speed;
+  float size;
+  float time;
+};
 void
 render(GLFWwindow *window) {
 
@@ -377,8 +384,8 @@ render(GLFWwindow *window) {
     size_t height = 2;
     // clang-format off
     uint8_t pixels[12] = {
-	    0  , 255, 255,     255, 255, 0,
-	    255, 0  , 255,     0, 0  , 255
+	    240  , 25, 10,     200, 55, 44,
+	    200, 30  , 10,     200, 255  , 10
     };
     // clang-format on
 
@@ -468,12 +475,13 @@ render(GLFWwindow *window) {
     GLint uniChosen = glGetUniformLocation(cube_shader_program, "chosen");
 
     time_point t_start = now();
+    time_point t_prev = now();
 
     float sign = 1;
     float scale_f = 1.2F;
     float rot_f = 0;
 
-    int terrain_width = 150;
+    int terrain_width = 100;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
@@ -482,8 +490,8 @@ render(GLFWwindow *window) {
     KeyState r_state = KeyState::KeyUp;
     KeyState mouse_state = KeyState::KeyUp;
 
-    vec3f centers_new[100];
-    int n_centers = 0;
+    Wave waves[100];
+    int n_waves = 0;
     srand(time(nullptr));
     while (!glfwWindowShouldClose(window)) {
 
@@ -506,7 +514,7 @@ render(GLFWwindow *window) {
 
       bool add_center = (mouse_state == KeyState::KeyPressed);
       if (r_state == KeyState::KeyPressed) {
-        n_centers = 0;
+        n_waves = 0;
       }
 
       // Zoom in out
@@ -541,6 +549,8 @@ render(GLFWwindow *window) {
 
       time_point t_now = now();
       float time = time_between(t_start, t_now);
+      float time_delta = time_between(t_prev, t_now);
+      t_prev = t_now;
 
       //--------------------------------------------------
       // Camera setup
@@ -634,22 +644,34 @@ render(GLFWwindow *window) {
             float col_norm = (float)col / terrain_width;
 
             float acc_val = 0;
-            for (int i = 0; i < n_centers; ++i) {
-              vec3f center = centers_new[i];
-              float r = sqrtf(powf(col_norm - center.x, 2) +
-                              powf(row_norm - center.y, 2));
-              float tt = time * center.z;
+            for (int i = 0; i < n_waves; ++i) {
+              auto wave = waves[i];
+              float r = sqrtf(powf(col_norm - wave.x, 2) +
+                              powf(row_norm - wave.y, 2));
+              float tt = wave.time * wave.speed;
 
-              float val_f = powf((1 - r), 2) *
-                            (0.5F + 0.5F * cosf(r * pi * 20 - tt * 2) + 0.1F +
-                             0.1F * sinf(r * pi * 60 + 10 + tt * 5));
-              acc_val += val_f;
+              float repititions = 7;
+
+              float wave_place = r * pi * repititions - tt;
+
+              if (-0.5* pi <= wave_place && wave_place <=   1.5 *pi) {
+
+		float cos_w = cosf(wave_place);
+		if(wave_place > pi) {
+			cos_w = powf(cos_w, 3);
+		}
+                float val_f = wave.size * (0.5F * cos_w);
+                acc_val += val_f;
+              }
             }
-            acc_val *= 0.3;
-            acc_val += 0.1;
+            acc_val += 0.5;
             terrain_vals[row * terrain_width + col] = acc_val;
           }
         }
+      }
+
+      for (int i = 0; i < n_waves; ++i) {
+        waves[i].time += time_delta;
       }
 
       glEnable(GL_DEPTH_TEST);
@@ -711,8 +733,13 @@ render(GLFWwindow *window) {
 
           if (row == chosen_row && col == chosen_col) {
             if (add_center) {
-		    float speed = (float)rand() / (float)(RAND_MAX);
-              centers_new[n_centers++] = vec3f{col_norm, row_norm, speed * 4.5F};
+              float speed = 4 * (float)rand() / (float)(RAND_MAX);
+              float size =  (float)rand() / (float)(RAND_MAX);
+              waves[n_waves++] = Wave{.x = col_norm,
+                                      .y = row_norm,
+                                      .speed = speed,
+                                      .size = size,
+                                      .time = 0};
             }
           }
           bool is_chosen = false;
