@@ -665,6 +665,7 @@ render(GLFWwindow *window) {
               }
             }
             acc_val += 0.5;
+            acc_val = -5;
             terrain_vals[row * terrain_width + col] = acc_val;
           }
         }
