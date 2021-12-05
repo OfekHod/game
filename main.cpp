@@ -334,7 +334,7 @@ render(GLFWwindow *window) {
 	    outColor = vec4(0.0, 0.0, 1.0, 1.0);
 	  }
 
-          vec3 lightPos = vec3(30, 50, 10);
+          vec3 lightPos = vec3(30, 500, 10);
           vec3 lightDir = normalize(lightPos - FragPos);
           vec3 norm = normalize(Normal);
           float diff = max(dot(norm, lightDir), 0.0);
@@ -525,7 +525,7 @@ render(GLFWwindow *window) {
           scale_f += 0.3;
         }
         scale_f = fmaxf(scale_f, 2);
-        scale_f = fminf(scale_f, 10);
+        scale_f = fminf(scale_f, 30);
       }
 
       // rotation
@@ -571,7 +571,7 @@ render(GLFWwindow *window) {
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
         proj = perspective(45.0F * deg2rad, float(screen_width) / screen_height,
-                           0.5f, 50.F);
+                           0.5f, 60.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
@@ -631,7 +631,7 @@ render(GLFWwindow *window) {
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      float scale = 6.0F;
+      float scale = 30.0F;
       mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
 
       float w_pix = 1.0F / terrain_width;
@@ -657,15 +657,13 @@ render(GLFWwindow *window) {
               if (-0.5* pi <= wave_place && wave_place <=   1.5 *pi) {
 
 		float cos_w = cosf(wave_place);
-		if(wave_place > pi) {
+		if(wave_place > pi || wave_place < 0) {
 			cos_w = powf(cos_w, 3);
 		}
                 float val_f = wave.size * (0.5F * cos_w);
-                acc_val += val_f;
+		acc_val += val_f;
               }
             }
-            acc_val += 0.5;
-            acc_val = -5;
             terrain_vals[row * terrain_width + col] = acc_val;
           }
         }
@@ -693,13 +691,9 @@ render(GLFWwindow *window) {
           float row_norm = (float)row / terrain_width;
           float col_norm = (float)col / terrain_width;
           float acc_val = terrain_vals[row * terrain_width + col];
-          mat4f trans = diagonal(w_pix, acc_val, w_pix, 1);
-
           vec3f pppos{row_norm - 0.5F, acc_val, col_norm - 0.5F};
           pppos = scale_mat * pppos;
-
           vec3f cam2pos = normalized(pppos - cam_pos);
-
           float score = dot(cam2pos, dir);
           if (score > max_score) {
             max_score = score;
@@ -723,9 +717,9 @@ render(GLFWwindow *window) {
           float row_norm = (float)row / terrain_width;
           float col_norm = (float)col / terrain_width;
           float acc_val = terrain_vals[row * terrain_width + col];
-          mat4f trans = diagonal(w_pix, acc_val, w_pix, 1);
+          mat4f trans = diagonal(w_pix, 2, w_pix, 1);
           trans.elements[12] = row_norm - 0.5;
-          trans.elements[13] = acc_val * 0.5F;
+          trans.elements[13] = acc_val  - 1;
           trans.elements[14] = col_norm - 0.5;
 
           trans = scale_mat * trans;
@@ -734,8 +728,8 @@ render(GLFWwindow *window) {
 
           if (row == chosen_row && col == chosen_col) {
             if (add_center) {
-              float speed = 4 * (float)rand() / (float)(RAND_MAX);
-              float size =  (float)rand() / (float)(RAND_MAX);
+              float speed = 1 + 10 * (float)rand() / (float)(RAND_MAX);
+              float size =  1 + 8 * (float)rand() / (float)(RAND_MAX);
               waves[n_waves++] = Wave{.x = col_norm,
                                       .y = row_norm,
                                       .speed = speed,
