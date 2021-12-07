@@ -814,7 +814,7 @@ render(GLFWwindow *window) {
       }
 
       if (wave_state == WaveState::DoneAdding) {
-        float speed = waves[n_waves -1].size;
+        float speed = absf(waves[n_waves -1].size);
         waves[n_waves - 1].speed = speed;
         waves[n_waves - 1].time = 0;
       }
