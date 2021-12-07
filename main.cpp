@@ -27,6 +27,7 @@ time_between(time_point start, time_point end) {
 }
 
 enum class KeyState { KeyUp, KeyDown, KeyPressed };
+enum class WaveState { Add, Adding, DoneAdding, Simulate };
 
 KeyState
 update_kstate(KeyState s, int glfw_state) {
@@ -153,6 +154,7 @@ render(GLFWwindow *window) {
         void
         main() {
           vec4 c = texture(tex, Texcoord);
+	  c.r /= 2.0;
           outColor = vec4(c.r, c.r, c.r, 1.0);
         }
     )glsl",
@@ -478,7 +480,7 @@ render(GLFWwindow *window) {
     time_point t_prev = now();
 
     float sign = 1;
-    float scale_f = 1.2F;
+    float scale_f = 10.0F;
     float rot_f = 0;
 
     int terrain_width = 100;
@@ -486,10 +488,16 @@ render(GLFWwindow *window) {
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
     bool debug_overlay = false;
+    bool overlay_texture = false;
     KeyState g_state = KeyState::KeyUp;
     KeyState r_state = KeyState::KeyUp;
+    KeyState o_state = KeyState::KeyUp;
     KeyState mouse_state = KeyState::KeyUp;
 
+    WaveState wave_state = WaveState::Simulate;
+    int wave_row = -1;
+    int wave_col = -1;
+    float wave_base_height = 0;
     Wave waves[100];
     int n_waves = 0;
     srand(time(nullptr));
@@ -503,7 +511,8 @@ render(GLFWwindow *window) {
       mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
 
       g_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_G));
-      r_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_R));
+      o_state = update_kstate(o_state, glfwGetKey(window, GLFW_KEY_O));
+      r_state = update_kstate(r_state, glfwGetKey(window, GLFW_KEY_R));
 
       mouse_state = update_kstate(
           mouse_state, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1));
@@ -512,9 +521,30 @@ render(GLFWwindow *window) {
         debug_overlay = !debug_overlay;
       }
 
+      if(o_state == KeyState::KeyPressed) {
+	      overlay_texture = !overlay_texture;
+      }
+
       bool add_center = (mouse_state == KeyState::KeyPressed);
       if (r_state == KeyState::KeyPressed) {
         n_waves = 0;
+      }
+
+      if (wave_state == WaveState::Add) {
+        wave_state = WaveState::Adding;
+      }
+      if (wave_state == WaveState::DoneAdding) {
+        wave_state = WaveState::Simulate;
+      }
+      if (mouse_state == KeyState::KeyPressed ||
+          mouse_state == KeyState::KeyDown) {
+        if (wave_state == WaveState::Simulate) {
+          wave_state = WaveState::Add;
+        }
+      } else {
+        if (wave_state == WaveState::Adding) {
+          wave_state = WaveState::DoneAdding;
+        }
       }
 
       // Zoom in out
@@ -525,7 +555,7 @@ render(GLFWwindow *window) {
           scale_f += 0.3;
         }
         scale_f = fmaxf(scale_f, 2);
-        scale_f = fminf(scale_f, 30);
+        scale_f = fminf(scale_f, 40);
       }
 
       // rotation
@@ -571,13 +601,14 @@ render(GLFWwindow *window) {
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
 
         proj = perspective(45.0F * deg2rad, float(screen_width) / screen_height,
-                           0.5f, 60.F);
+                           0.5f, 100.F);
 
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
 
       // Camera ray
       vec3f dir;
+      vec3f ray_normal;
       {
         mat4f view2 = copy(&view);
         view2.elements[12] = 0;
@@ -587,6 +618,11 @@ render(GLFWwindow *window) {
         vec3f screen_pos{(float)mouse_x, -(float)mouse_y, 1.0F};
         dir = invVP * screen_pos;
         dir = normalized(dir);
+
+        vec3f cam_x = {view2.elements[4 * 0 + 0], view2.elements[4 * 1 + 0],
+                       view2.elements[4 * 2 + 0]};
+
+        ray_normal = normalized(cross(dir, cam_x));
       }
 
       // Inner draw fucntions
@@ -599,7 +635,7 @@ render(GLFWwindow *window) {
         GLint uniProj = glGetUniformLocation(debug_line_program, "proj");
         GLint uniColor = glGetUniformLocation(debug_line_program, "inColor");
 
-        mat4f transD = streach_from_to(p1, p2, 0.01);
+        mat4f transD = streach_from_to(p1, p2, 0.05);
 
         glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transD.elements);
         glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
@@ -631,7 +667,7 @@ render(GLFWwindow *window) {
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-      float scale = 30.0F;
+      float scale = 20.0F;
       mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
 
       float w_pix = 1.0F / terrain_width;
@@ -650,18 +686,22 @@ render(GLFWwindow *window) {
                               powf(row_norm - wave.y, 2));
               float tt = wave.time * wave.speed;
 
-              float repititions = 7;
+              float repititions = 4;
 
               float wave_place = r * pi * repititions - tt;
 
-              if (-0.5* pi <= wave_place && wave_place <=   1.5 *pi) {
+              if (-0.5 * pi <= wave_place && wave_place <= 1.5 * pi) {
 
-		float cos_w = cosf(wave_place);
-		if(wave_place > pi || wave_place < 0) {
-			cos_w = powf(cos_w, 3);
-		}
-                float val_f = wave.size * (0.5F * cos_w);
-		acc_val += val_f;
+                float cos_w = cosf(wave_place);
+                if (wave_place > pi || wave_place < 0) {
+                  cos_w = powf(cos_w, 3);
+                }
+                if (cos_w < 0) {
+                  cos_w /= 3;
+                }
+
+                float val_f = wave.size * (cos_w);
+                acc_val += val_f;
               }
             }
             terrain_vals[row * terrain_width + col] = acc_val;
@@ -700,7 +740,7 @@ render(GLFWwindow *window) {
             chosen_row = row;
             chosen_col = col;
           }
-          score = powf(score, 1000);
+          score = powf(score, 500);
 
           if (debug_overlay) {
             draw_line(pppos, pppos + vec3f{0, score, 0}, vec3f{0.8, 0.9, 0.6});
@@ -719,7 +759,7 @@ render(GLFWwindow *window) {
           float acc_val = terrain_vals[row * terrain_width + col];
           mat4f trans = diagonal(w_pix, 2, w_pix, 1);
           trans.elements[12] = row_norm - 0.5;
-          trans.elements[13] = acc_val  - 1;
+          trans.elements[13] = acc_val - 1;
           trans.elements[14] = col_norm - 0.5;
 
           trans = scale_mat * trans;
@@ -727,14 +767,16 @@ render(GLFWwindow *window) {
           glUniform1i(uniDebug, debug_overlay);
 
           if (row == chosen_row && col == chosen_col) {
-            if (add_center) {
-              float speed = 1 + 10 * (float)rand() / (float)(RAND_MAX);
-              float size =  1 + 8 * (float)rand() / (float)(RAND_MAX);
+            if (wave_state == WaveState::Add) {
+              float size = 1 + 8 * (float)rand() / (float)(RAND_MAX);
               waves[n_waves++] = Wave{.x = col_norm,
                                       .y = row_norm,
-                                      .speed = speed,
-                                      .size = size,
+                                      .speed = 0,
+                                      .size = 0,
                                       .time = 0};
+              wave_row = row;
+              wave_col = col;
+              wave_base_height = acc_val;
             }
           }
           bool is_chosen = false;
@@ -749,14 +791,36 @@ render(GLFWwindow *window) {
               }
             }
           }
-          glUniform1i(uniChosen, is_chosen);
+          // glUniform1i(uniChosen, is_chosen);
 
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
         }
       }
+      if (wave_state == WaveState::Adding) {
+        Wave *last = &waves[n_waves - 1];
+        int row = wave_row;
+        int col = wave_col;
+        float row_norm = (float)wave_row / terrain_width;
+        float col_norm = (float)wave_col / terrain_width;
+
+        vec3f pppos{row_norm - 0.5F, wave_base_height, col_norm - 0.5F};
+        pppos = scale_mat * pppos;
+        vec3f pos2cam = cam_pos - pppos;
+
+        float b_length =
+            dot(pos2cam, ray_normal) / dot(vec3f{0, 1, 0}, ray_normal);
+
+        last->size = b_length;
+      }
+
+      if (wave_state == WaveState::DoneAdding) {
+        float speed = waves[n_waves -1].size;
+        waves[n_waves - 1].speed = speed;
+        waves[n_waves - 1].time = 0;
+      }
 
       // Draw overlay texture
-      {
+      if (overlay_texture) {
         glDisable(GL_DEPTH_TEST);
         glBindVertexArray(vaos[0]);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
