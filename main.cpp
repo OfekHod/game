@@ -480,8 +480,8 @@ render(GLFWwindow *window) {
     time_point t_prev = now();
 
     float sign = 1;
-    float scale_f = 10.0F;
-    float rot_f = 0;
+    float scale_f = 20.0F;
+    float rot_f = 1;
 
     int terrain_width = 100;
     float *terrain_vals =
@@ -501,6 +501,14 @@ render(GLFWwindow *window) {
     Wave waves[100];
     int n_waves = 0;
     srand(time(nullptr));
+
+    // Collected demo params
+    int n_pts = 15;
+    bool collected[n_pts];
+    for (int i = 0; i < n_pts; ++i) {
+      collected[i] = false;
+    }
+
     while (!glfwWindowShouldClose(window)) {
 
       // User input
@@ -521,13 +529,16 @@ render(GLFWwindow *window) {
         debug_overlay = !debug_overlay;
       }
 
-      if(o_state == KeyState::KeyPressed) {
-	      overlay_texture = !overlay_texture;
+      if (o_state == KeyState::KeyPressed) {
+        overlay_texture = !overlay_texture;
       }
 
       bool add_center = (mouse_state == KeyState::KeyPressed);
       if (r_state == KeyState::KeyPressed) {
         n_waves = 0;
+        for (int i = 0; i < n_pts; ++i) {
+          collected[i] = false;
+        }
       }
 
       if (wave_state == WaveState::Add) {
@@ -686,7 +697,7 @@ render(GLFWwindow *window) {
                               powf(row_norm - wave.y, 2));
               float tt = wave.time * wave.speed;
 
-              float repititions = 4;
+              float repititions = 10;
 
               float wave_place = r * pi * repititions - tt;
 
@@ -721,7 +732,7 @@ render(GLFWwindow *window) {
 
       // Find chosen terrain box
 
-      // Mouse shoose box
+      // Mouse choose box
       glDepthRange(0.01, 1.0);
       int chosen_row = -1;
       int chosen_col = -1;
@@ -748,6 +759,44 @@ render(GLFWwindow *window) {
         }
       }
 
+      // Draw lines for demo
+      {
+        vec3f p0{0, 3, 0};
+        vec3f addy{0, 1.1, 0};
+        float radius = 10;
+        for (int i = 0; i < n_pts; ++i) {
+          float t = 2 * pi * (float)i / (float)n_pts;
+          vec3f c_dir = vec3f{cosf(t), 0, sinf(t)};
+          draw_line(p0, p0 + radius * c_dir, vec3f{1, 1, 1});
+          draw_line(vec3f{0, 0, 0}, radius * c_dir, vec3f{0.3, 0.3, 0.3});
+          int m = 2;
+          // float tt = fmod(time, m) / m;
+          //  draw_star(p0 + tt * radius * 0.5 * c_dir, 0.1, vec3f{0, 0, 1});
+          //  draw_star(tt * radius * 0.5 * c_dir, 0.1, vec3f{0.3, 0.3, 0.3});
+
+          vec3f star_pos = p0 + addy + 0.7 * radius * c_dir;
+
+          float x = star_pos.x;
+          float z = star_pos.z;
+
+          int row = (int)((x / scale + 0.5) * terrain_width);
+          int col = (int)((z / scale + 0.5) * terrain_width);
+          float acc_val = terrain_vals[row * terrain_width + col];
+
+          if (acc_val > star_pos.y) {
+            collected[i] = true;
+          }
+
+          if (!collected[i]) {
+            vec3f star_color =
+                collected[i] ? vec3f{0.7, 0.7, 0.7} : vec3f{0.8, 0.8, 0.0};
+            draw_star(star_pos, 0.1, star_color);
+            star_pos.y = 0;
+            draw_star(star_pos, 0.1, vec3f{0.3, 0.3, 0.3});
+          }
+        }
+      }
+
       // Draw terrain
       glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
@@ -768,7 +817,6 @@ render(GLFWwindow *window) {
 
           if (row == chosen_row && col == chosen_col) {
             if (wave_state == WaveState::Add) {
-              float size = 1 + 8 * (float)rand() / (float)(RAND_MAX);
               waves[n_waves++] = Wave{.x = col_norm,
                                       .y = row_norm,
                                       .speed = 0,
@@ -810,11 +858,15 @@ render(GLFWwindow *window) {
         float b_length =
             dot(pos2cam, ray_normal) / dot(vec3f{0, 1, 0}, ray_normal);
 
-        last->size = b_length;
+        last->size = clamp(b_length, -4, 4);
       }
 
       if (wave_state == WaveState::DoneAdding) {
-        float speed = absf(waves[n_waves -1].size);
+        float s = waves[n_waves - 1].size;
+        float speed = powf(fabs(s), 1.5);
+        if (s < 0) {
+          speed *= -1;
+        }
         waves[n_waves - 1].speed = speed;
         waves[n_waves - 1].time = 0;
       }

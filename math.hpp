@@ -85,3 +85,6 @@ dot(vec3f u, vec3f v);
 
 vec3f
 operator-(vec3f v);
+
+float
+clamp(float x, float min_v, float max_v);

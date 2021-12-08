@@ -323,3 +323,16 @@ copy(mat4f *m) {
 
   return res;
 }
+
+float
+clamp(float x, float min_v, float max_v) {
+  if (x > max_v) {
+    return max_v;
+  }
+
+  if (x < min_v) {
+    return min_v;
+  }
+
+  return x;
+}
