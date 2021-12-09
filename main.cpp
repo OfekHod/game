@@ -481,9 +481,9 @@ render(GLFWwindow *window) {
 
     float sign = 1;
     float scale_f = 5.0F;
-    float rot_f = 1;
+    float rot_f = 0.1;
 
-    int terrain_width = 100;
+    int terrain_width = 70;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
@@ -684,20 +684,28 @@ render(GLFWwindow *window) {
       float w_pix = 1.0F / terrain_width;
 
       // Define terrain
-      for (int row = 0; row < terrain_width; ++row) {
+      int mirror_row = (int)(0.90 * terrain_width);
+      //mirror_row = terrain_width;
+      for (int row = 0; row < mirror_row; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
-          {
+          float acc_val = 0;
+          for (int step = 0; step < 2; ++step) {
+
             float row_norm = (float)row / terrain_width;
             float col_norm = (float)col / terrain_width;
 
-            float acc_val = 0;
+            if (step == 1) {
+              row_norm = (float)(mirror_row + mirror_row - row) / terrain_width;
+              col_norm = (float)col / terrain_width;
+            }
+
             for (int i = 0; i < n_waves; ++i) {
               auto wave = waves[i];
               float r = sqrtf(powf(col_norm - wave.x, 2) +
                               powf(row_norm - wave.y, 2));
               float tt = wave.time * wave.speed;
 
-              float repititions = 10;
+              float repititions = 20;
 
               float wave_place = r * pi * repititions - tt;
 
@@ -715,8 +723,8 @@ render(GLFWwindow *window) {
                 acc_val += val_f;
               }
             }
-            terrain_vals[row * terrain_width + col] = acc_val;
           }
+          terrain_vals[row * terrain_width + col] = acc_val;
         }
       }
 
@@ -759,6 +767,18 @@ render(GLFWwindow *window) {
         }
       }
 
+      // Draw mirror wall
+      {
+        float row_norm = (float)mirror_row / terrain_width;
+        for (int col = 0; col < terrain_width; ++col) {
+          float col_norm = (float)col / terrain_width;
+          vec3f pppos{row_norm - 0.5F, 0, col_norm - 0.5F};
+          pppos = scale_mat * pppos;
+	  vec3f addy{0, 10, 0};
+	  draw_line(pppos, pppos + addy, vec3f{1, 0, 0});
+
+        }
+      }
       // Draw lines for demo
       {
         vec3f p0{0, 0.5, 0};
