@@ -483,7 +483,7 @@ render(GLFWwindow *window) {
     float scale_f = 5.0F;
     float rot_f = 0.1;
 
-    int terrain_width = 70;
+    int terrain_width = 90;
     float *terrain_vals =
         (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
@@ -683,8 +683,15 @@ render(GLFWwindow *window) {
 
       float w_pix = 1.0F / terrain_width;
 
+
       // Define terrain
+      for(int i = 0 ; i < terrain_width * terrain_width; ++i ){
+	      terrain_vals[i] = 0;
+      }
       int mirror_row = (int)(0.90 * terrain_width);
+
+      int hero_row = 10;
+      int hero_col = 20;
       //mirror_row = terrain_width;
       for (int row = 0; row < mirror_row; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
@@ -705,7 +712,7 @@ render(GLFWwindow *window) {
                               powf(row_norm - wave.y, 2));
               float tt = wave.time * wave.speed;
 
-              float repititions = 20;
+              float repititions = 6;
 
               float wave_place = r * pi * repititions - tt;
 
@@ -724,7 +731,11 @@ render(GLFWwindow *window) {
               }
             }
           }
+	  if ((pow(hero_row - row, 2) + pow(hero_col - col, 2)) >= 25) {
           terrain_vals[row * terrain_width + col] = acc_val;
+	  } else {
+          terrain_vals[row * terrain_width + col] = 0.4;
+	  }
         }
       }
 
@@ -778,6 +789,16 @@ render(GLFWwindow *window) {
 	  draw_line(pppos, pppos + addy, vec3f{1, 0, 0});
 
         }
+      }
+
+      // Draw hero
+      {
+        float row_norm = (float)hero_row / terrain_width;
+        float col_norm = (float)hero_col / terrain_width;
+        vec3f pppos{row_norm - 0.5F, 0.3, col_norm - 0.5F};
+          pppos = scale_mat * pppos;
+	draw_star(pppos, 0.1, vec3f{1, 0.5, 0.5});
+	draw_star(pppos + vec3f{0, -0.3, 0}, 0.1, vec3f{1, 0.5, 0.5});
       }
       // Draw lines for demo
       {
@@ -890,6 +911,11 @@ render(GLFWwindow *window) {
 
       // Draw overlay texture
       if (overlay_texture) {
+	      for(int i = 0; i < terrain_width * terrain_width; ++i) {
+		      terrain_vals[i] += 0.5;
+		      terrain_vals[i] /= 3;
+	      }
+
         glDisable(GL_DEPTH_TEST);
         glBindVertexArray(vaos[0]);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
