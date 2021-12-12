@@ -300,6 +300,7 @@ render(GLFWwindow *window) {
         out vec2 Texcoord;
         out vec3 FragPos;
         out vec3 Normal;
+	out float Height;
 
         uniform mat4 trans;
         uniform mat4 view;
@@ -308,9 +309,11 @@ render(GLFWwindow *window) {
         void
         main() {
           Texcoord = texcoord;
+	  vec4 pos_t = trans * vec4(position, 1.0);
           gl_Position = proj * view * trans * vec4(position, 1.0);
           FragPos = vec3(trans * vec4(position, 1.0));
           Normal = mat3(trans) * normal;
+	  Height = 0.2 + pos_t.y * 2.0;
         }
     )glsl";
 
@@ -320,6 +323,7 @@ render(GLFWwindow *window) {
         in vec2 Texcoord;
         in vec3 Normal;
         in vec3 FragPos;
+	in float Height;
 
         out vec4 outColor;
 
@@ -331,6 +335,10 @@ render(GLFWwindow *window) {
         main() {
           vec4 color_tex = texture(tex, Texcoord);
           outColor = color_tex;
+
+	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
+	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
+	  outColor = mix(blue, green, Height);
 
 	  if (chosen) {
 	    outColor = vec4(0.0, 0.0, 1.0, 1.0);
@@ -712,7 +720,7 @@ render(GLFWwindow *window) {
                               powf(row_norm - wave.y, 2));
               float tt = wave.time * wave.speed;
 
-              float repititions = 6;
+              float repititions = 4;
 
               float wave_place = r * pi * repititions - tt;
 
@@ -785,7 +793,7 @@ render(GLFWwindow *window) {
           float col_norm = (float)col / terrain_width;
           vec3f pppos{row_norm - 0.5F, 0, col_norm - 0.5F};
           pppos = scale_mat * pppos;
-	  vec3f addy{0, 10, 0};
+	  vec3f addy{0, 2, 0};
 	  draw_line(pppos, pppos + addy, vec3f{1, 0, 0});
 
         }
