@@ -62,7 +62,6 @@ struct Shader {
 struct VertsContent {
   size_t size;
   vec3f *verts;
-  vec2f *texcoords;
   vec3f *normals;
 };
 
@@ -201,13 +200,6 @@ render(GLFWwindow *window) {
 	  {{5, 4, 7, 6}, vec3f{0, 0, 1}}
   };
 
-  vec2f tex_c[4] {
-      	{0.0F, 0.0F},
-      	{0.0F, 1.0F},
-	{1.0F, 1.0F},
-      	{1.0F, 0.0F}
-  };
-
   // clang-format on
 
   VertsContent verts_content;
@@ -218,7 +210,6 @@ render(GLFWwindow *window) {
 
   verts_content.size = n_verts;
   verts_content.verts = c_verts;
-  verts_content.texcoords = c_coords;
   verts_content.normals = c_normals;
 
   GLuint cube_elements[6 * 6];
@@ -230,7 +221,6 @@ render(GLFWwindow *window) {
       int a = ver_out;
       for (int j = 0; j < 4; j++) {
         verts_content.verts[ver_out] = cube_verts[rect[j]];
-        verts_content.texcoords[ver_out] = tex_c[j];
         verts_content.normals[ver_out] = normal;
         ver_out++;
       }
@@ -255,15 +245,11 @@ render(GLFWwindow *window) {
     size_t attr_idx = 0;
     for (size_t vert_idx = 0; vert_idx < verts_content.size; vert_idx++) {
       vec3f *vert = &verts_content.verts[vert_idx];
-      vec2f *coord = &verts_content.texcoords[vert_idx];
       vec3f *normal = &verts_content.normals[vert_idx];
 
       attr[attr_idx++] = vert->x;
       attr[attr_idx++] = vert->y;
       attr[attr_idx++] = vert->z;
-
-      attr[attr_idx++] = coord->x;
-      attr[attr_idx++] = coord->y;
 
       attr[attr_idx++] = normal->x;
       attr[attr_idx++] = normal->y;
@@ -294,10 +280,8 @@ render(GLFWwindow *window) {
         #version 150 core
 
         in vec3 position;
-        in vec2 texcoord;
         in vec3 normal;
 
-        out vec2 Texcoord;
         out vec3 FragPos;
         out vec3 Normal;
 	out float Height;
@@ -308,7 +292,6 @@ render(GLFWwindow *window) {
 
         void
         main() {
-          Texcoord = texcoord;
 	  vec4 pos_t = trans * vec4(position, 1.0);
           gl_Position = proj * view * trans * vec4(position, 1.0);
           FragPos = vec3(trans * vec4(position, 1.0));
@@ -320,22 +303,17 @@ render(GLFWwindow *window) {
     const char *new_fragment_source = R"glsl(
         #version 150 core
 
-        in vec2 Texcoord;
         in vec3 Normal;
         in vec3 FragPos;
 	in float Height;
 
         out vec4 outColor;
 
-        uniform sampler2D tex;
 	uniform bool debug;
 	uniform bool chosen;
 
         void
         main() {
-          vec4 color_tex = texture(tex, Texcoord);
-          outColor = color_tex;
-
 	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
 	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
 	  outColor = mix(blue, green, Height);
@@ -366,7 +344,6 @@ render(GLFWwindow *window) {
 
     std::pair<const char *, size_t> program_args[3] = {
         {"position", vert_size},
-        {"texcoord", texcoord_size},
         {"normal", vert_size}};
 
     size_t sizeof_attr = 0;
