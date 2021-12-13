@@ -39,10 +39,9 @@ update_kstate(KeyState s, int glfw_state) {
     return KeyState::KeyDown;
   }
 }
-struct Shader {
-  GLuint gl_ptr;
-  Shader(const char *source, GLenum type) {
-    gl_ptr = glCreateShader(type);
+
+GLuint compile_shader(const char* source, GLenum type) {
+    GLuint gl_ptr = glCreateShader(type);
     glShaderSource(gl_ptr, 1, &source, nullptr);
     glCompileShader(gl_ptr);
 
@@ -56,7 +55,7 @@ struct Shader {
     char buffer[512];
     glGetShaderInfoLog(gl_ptr, 512, nullptr, buffer);
     printf("%s\n", buffer);
-  }
+    return gl_ptr;
 };
 
 struct VertsContent {
@@ -75,20 +74,42 @@ struct Wave {
   float size;
   float time;
 };
+
+struct DrawContext {
+	GLuint vao;
+	GLuint shader_program;
+};
+
+void switch_to_context(DrawContext* ctx) {
+        glBindVertexArray(ctx->vao);
+        glUseProgram(ctx->shader_program);
+}
+
+
 void
 render(GLFWwindow *window) {
 
-  GLuint debug_line_program = glCreateProgram();
+
+  DrawContext overlay_context;
+  DrawContext debug_context;
+  DrawContext cube_context;
 
   GLuint vaos[3];
   glGenVertexArrays(3, vaos);
-  glBindVertexArray(vaos[0]);
-  GLuint overlay_shader_program = glCreateProgram();
+  overlay_context.vao = vaos[0];
+  cube_context.vao = vaos[1];
+  debug_context.vao = vaos[2];
+
+  debug_context.shader_program = glCreateProgram();
+  overlay_context.shader_program = glCreateProgram();
+  cube_context.shader_program = glCreateProgram();
+
+  glBindVertexArray(overlay_context.vao);
   GLuint overlay_texture;
-  glGenTextures(1, &overlay_texture);
 
   // Define Overlay texture
   {
+    glGenTextures(1, &overlay_texture);
     glBindTexture(GL_TEXTURE_2D, overlay_texture);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -128,7 +149,7 @@ render(GLFWwindow *window) {
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements,
                    GL_STATIC_DRAW);
     }
-    Shader vertex_shader = Shader(R"glsl(
+    GLuint vertex_shader = compile_shader(R"glsl(
         #version 150 core
 
         in vec2 position;
@@ -143,7 +164,7 @@ render(GLFWwindow *window) {
     )glsl",
                                   GL_VERTEX_SHADER);
 
-    Shader fragment_shader = Shader(R"glsl(
+    GLuint fragment_shader = compile_shader(R"glsl(
         #version 150 core
         out vec4 outColor;
         in vec2 Texcoord;
@@ -159,13 +180,13 @@ render(GLFWwindow *window) {
     )glsl",
                                     GL_FRAGMENT_SHADER);
 
-    glAttachShader(overlay_shader_program, vertex_shader.gl_ptr);
-    glAttachShader(overlay_shader_program, fragment_shader.gl_ptr);
-    glBindFragDataLocation(overlay_shader_program, 0, "outColor");
-    glLinkProgram(overlay_shader_program);
+    glAttachShader(overlay_context.shader_program, vertex_shader);
+    glAttachShader(overlay_context.shader_program, fragment_shader);
+    glBindFragDataLocation(overlay_context.shader_program, 0, "outColor");
+    glLinkProgram(overlay_context.shader_program);
 
-    GLuint pos_attrib = glGetAttribLocation(overlay_shader_program, "position");
-    GLuint coord_attrib = glGetAttribLocation(overlay_shader_program, "uv");
+    GLuint pos_attrib = glGetAttribLocation(overlay_context.shader_program, "position");
+    GLuint coord_attrib = glGetAttribLocation(overlay_context.shader_program, "uv");
     int attr_size = sizeof(float) * 4;
     glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE, attr_size, 0);
     glEnableVertexAttribArray(pos_attrib);
@@ -274,7 +295,6 @@ render(GLFWwindow *window) {
 
   //--------------------------------------------------------------------------------
   // Make Cube shader
-  GLuint cube_shader_program = glCreateProgram();
   {
     const char *new_vertex_source = R"glsl(
         #version 150 core
@@ -334,15 +354,15 @@ render(GLFWwindow *window) {
 	  }
         }
     )glsl";
-    const Shader vertex_shader(new_vertex_source, GL_VERTEX_SHADER);
-    const Shader fragment_shader(new_fragment_source, GL_FRAGMENT_SHADER);
+    const GLuint vertex_shader = compile_shader(new_vertex_source, GL_VERTEX_SHADER);
+    const GLuint fragment_shader = compile_shader(new_fragment_source, GL_FRAGMENT_SHADER);
 
-    glAttachShader(cube_shader_program, vertex_shader.gl_ptr);
-    glAttachShader(cube_shader_program, fragment_shader.gl_ptr);
-    glBindFragDataLocation(cube_shader_program, 0, "outColor");
-    glLinkProgram(cube_shader_program);
+    glAttachShader(cube_context.shader_program, vertex_shader);
+    glAttachShader(cube_context.shader_program, fragment_shader);
+    glBindFragDataLocation(cube_context.shader_program, 0, "outColor");
+    glLinkProgram(cube_context.shader_program);
 
-    std::pair<const char *, size_t> program_args[3] = {
+    std::pair<const char *, size_t> program_args[] = {
         {"position", vert_size},
         {"normal", vert_size}};
 
@@ -353,7 +373,7 @@ render(GLFWwindow *window) {
 
     size_t offset = 0;
     for (const auto &[name, el_size] : program_args) {
-      GLuint attr_location = glGetAttribLocation(cube_shader_program, name);
+      GLuint attr_location = glGetAttribLocation(cube_context.shader_program, name);
       glEnableVertexAttribArray(attr_location);
       glVertexAttribPointer(attr_location, el_size, GL_FLOAT, GL_FALSE,
                             sizeof_attr, reinterpret_cast<void *>(offset));
@@ -364,7 +384,7 @@ render(GLFWwindow *window) {
   //--------------------------------------------------------------------------------
   // Debug lines
   {
-    glUseProgram(debug_line_program);
+    glUseProgram(debug_context.shader_program);
     glBindVertexArray(vaos[2]);
 
     // clang-format on
@@ -389,7 +409,7 @@ render(GLFWwindow *window) {
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_elements),
                    cube_elements, GL_STATIC_DRAW);
     }
-    Shader vertex_shader = Shader(R"glsl(
+    GLuint vertex_shader = compile_shader(R"glsl(
             #version 150 core
             in vec3 position;
 
@@ -404,7 +424,7 @@ render(GLFWwindow *window) {
 	)glsl",
                                   GL_VERTEX_SHADER);
 
-    Shader fragment_shader = Shader(R"glsl(
+    GLuint fragment_shader = compile_shader(R"glsl(
             #version 150 core
 
             uniform vec3 inColor;
@@ -416,14 +436,14 @@ render(GLFWwindow *window) {
         )glsl",
                                     GL_FRAGMENT_SHADER);
 
-    glAttachShader(debug_line_program, vertex_shader.gl_ptr);
-    glAttachShader(debug_line_program, fragment_shader.gl_ptr);
-    glBindFragDataLocation(debug_line_program, 0, "outColorי");
-    glLinkProgram(debug_line_program);
-    glUseProgram(debug_line_program);
+    glAttachShader(debug_context.shader_program, vertex_shader);
+    glAttachShader(debug_context.shader_program, fragment_shader);
+    glBindFragDataLocation(debug_context.shader_program, 0, "outColorי");
+    glLinkProgram(debug_context.shader_program);
+    glUseProgram(debug_context.shader_program);
 
     glBindVertexArray(vaos[2]);
-    GLuint pos_attrib = glGetAttribLocation(debug_line_program, "position");
+    GLuint pos_attrib = glGetAttribLocation(debug_context.shader_program, "position");
     int attr_size = sizeof(float) * 3;
     glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, attr_size, 0);
     glEnableVertexAttribArray(pos_attrib);
@@ -431,11 +451,11 @@ render(GLFWwindow *window) {
 
   {
     size_t el_size = std::size(cube_elements);
-    GLint uniTrans = glGetUniformLocation(cube_shader_program, "trans");
-    GLuint uniView = glGetUniformLocation(cube_shader_program, "view");
-    GLint uniProj = glGetUniformLocation(cube_shader_program, "proj");
-    GLint uniDebug = glGetUniformLocation(cube_shader_program, "debug");
-    GLint uniChosen = glGetUniformLocation(cube_shader_program, "chosen");
+    GLint uniTrans = glGetUniformLocation(cube_context.shader_program, "trans");
+    GLuint uniView = glGetUniformLocation(cube_context.shader_program, "view");
+    GLint uniProj = glGetUniformLocation(cube_context.shader_program, "proj");
+    GLint uniDebug = glGetUniformLocation(cube_context.shader_program, "debug");
+    GLint uniChosen = glGetUniformLocation(cube_context.shader_program, "chosen");
 
     time_point t_start = now();
     time_point t_prev = now();
@@ -463,7 +483,7 @@ render(GLFWwindow *window) {
     int n_waves = 0;
     srand(time(nullptr));
 
-    // Collected demo params
+    // Star collection demo params
     int n_pts = 15;
     bool collected[n_pts];
     for (int i = 0; i < n_pts; ++i) {
@@ -546,7 +566,7 @@ render(GLFWwindow *window) {
 
       //=========================================
 
-      glUseProgram(cube_shader_program);
+      glUseProgram(cube_context.shader_program);
 
       time_point t_now = now();
       float time = time_between(t_start, t_now);
@@ -598,13 +618,12 @@ render(GLFWwindow *window) {
 
       // Inner draw fucntions
       auto draw_line = [&](vec3f p1, vec3f p2, vec3f color) {
-        glUseProgram(debug_line_program);
-        glBindVertexArray(vaos[2]);
+	switch_to_context(&debug_context);
 
-        GLint uniTrans = glGetUniformLocation(debug_line_program, "trans");
-        GLuint uniView = glGetUniformLocation(debug_line_program, "view");
-        GLint uniProj = glGetUniformLocation(debug_line_program, "proj");
-        GLint uniColor = glGetUniformLocation(debug_line_program, "inColor");
+        GLint uniTrans = glGetUniformLocation(debug_context.shader_program, "trans");
+        GLuint uniView = glGetUniformLocation(debug_context.shader_program, "view");
+        GLint uniProj = glGetUniformLocation(debug_context.shader_program, "proj");
+        GLint uniColor = glGetUniformLocation(debug_context.shader_program, "inColor");
 
         mat4f transD = streach_from_to(p1, p2, 0.01);
 
@@ -796,8 +815,7 @@ render(GLFWwindow *window) {
       }
 
       // Draw terrain
-      glUseProgram(cube_shader_program);
-      glBindVertexArray(vaos[1]);
+      switch_to_context(&cube_context);
       for (int row = 0; row < terrain_width; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
           float row_norm = (float)row / terrain_width;
@@ -876,11 +894,10 @@ render(GLFWwindow *window) {
 	      }
 
         glDisable(GL_DEPTH_TEST);
-        glBindVertexArray(vaos[0]);
+	switch_to_context(&overlay_context);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_width, 0,
                      GL_RED, GL_FLOAT, terrain_vals);
-        glUseProgram(overlay_shader_program);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       }
 
