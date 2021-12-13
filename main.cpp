@@ -40,22 +40,23 @@ update_kstate(KeyState s, int glfw_state) {
   }
 }
 
-GLuint compile_shader(const char* source, GLenum type) {
-    GLuint gl_ptr = glCreateShader(type);
-    glShaderSource(gl_ptr, 1, &source, nullptr);
-    glCompileShader(gl_ptr);
+GLuint
+compile_shader(const char *source, GLenum type) {
+  GLuint gl_ptr = glCreateShader(type);
+  glShaderSource(gl_ptr, 1, &source, nullptr);
+  glCompileShader(gl_ptr);
 
-    GLint status;
-    glGetShaderiv(gl_ptr, GL_COMPILE_STATUS, &status);
+  GLint status;
+  glGetShaderiv(gl_ptr, GL_COMPILE_STATUS, &status);
 
-    if (status != GL_TRUE) {
-      fprintf(stderr, "Fail compile shader\n");
-      exit(1);
-    }
-    char buffer[512];
-    glGetShaderInfoLog(gl_ptr, 512, nullptr, buffer);
-    printf("%s\n", buffer);
-    return gl_ptr;
+  if (status != GL_TRUE) {
+    fprintf(stderr, "Fail compile shader\n");
+    exit(1);
+  }
+  char buffer[512];
+  glGetShaderInfoLog(gl_ptr, 512, nullptr, buffer);
+  printf("%s\n", buffer);
+  return gl_ptr;
 };
 
 struct VertsContent {
@@ -76,19 +77,62 @@ struct Wave {
 };
 
 struct DrawContext {
-	GLuint vao;
-	GLuint shader_program;
+  GLuint vao;
+  GLuint shader_program;
 };
 
-void switch_to_context(DrawContext* ctx) {
-        glBindVertexArray(ctx->vao);
-        glUseProgram(ctx->shader_program);
+void
+switch_to_context(DrawContext *ctx) {
+  glBindVertexArray(ctx->vao);
+  glUseProgram(ctx->shader_program);
 }
 
+void
+init_debug_draw(DrawContext *debug_context, mat4f view, mat4f proj) {
+  switch_to_context(debug_context);
+  GLuint uniView = glGetUniformLocation(debug_context->shader_program, "view");
+  GLint uniProj = glGetUniformLocation(debug_context->shader_program, "proj");
+  glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
+  glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
+}
+
+void
+draw_line(DrawContext *debug_context, vec3f p1, vec3f p2, vec3f color) {
+
+  GLint uniTrans = glGetUniformLocation(debug_context->shader_program, "trans");
+  GLint uniColor =
+      glGetUniformLocation(debug_context->shader_program, "inColor");
+
+  mat4f transD = streach_from_to(p1, p2, 0.01);
+  glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transD.elements);
+  glUniform3f(uniColor, color.x, color.y, color.z);
+  int el_size = 6 * 6;
+  glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
+};
+
+void
+draw_star(DrawContext *debug_context, vec3f p, float scale, vec3f color) {
+  vec3f adds[3 * 3 * 3 - 1];
+  int idx = 0;
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      for (int k = 0; k < 3; ++k) {
+        float x = (float)(i - 1);
+        float y = (float)(j - 1);
+        float z = (float)(k - 1);
+        if (!(x == 0 && y == 0 && z == 0)) {
+          adds[idx++] = vec3f{x, y, z};
+        }
+      }
+    }
+  }
+  for (vec3f add : adds) {
+    draw_line(debug_context, p, p + scale * add, color);
+  }
+};
 
 void
 render(GLFWwindow *window) {
-
 
   DrawContext overlay_context;
   DrawContext debug_context;
@@ -106,6 +150,10 @@ render(GLFWwindow *window) {
 
   glBindVertexArray(overlay_context.vao);
   GLuint overlay_texture;
+
+  //================================================================================
+  //                                   Definitions
+  //================================================================================
 
   // Define Overlay texture
   {
@@ -134,17 +182,15 @@ render(GLFWwindow *window) {
 	    2, 3, 0
     };
     // clang-format on
-    GLuint arr[2];
-    glGenBuffers(2, arr);
-
     {
+      GLuint arr[2];
+      glGenBuffers(2, arr);
       GLuint vbo = arr[0];
+      GLuint ebo = arr[1];
+
       glBindBuffer(GL_ARRAY_BUFFER, vbo);
       glBufferData(GL_ARRAY_BUFFER, sizeof(attrs), attrs, GL_STATIC_DRAW);
-    }
 
-    {
-      GLuint ebo = arr[1];
       glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
       glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements,
                    GL_STATIC_DRAW);
@@ -162,7 +208,7 @@ render(GLFWwindow *window) {
           Texcoord = uv;
         }
     )glsl",
-                                  GL_VERTEX_SHADER);
+                                          GL_VERTEX_SHADER);
 
     GLuint fragment_shader = compile_shader(R"glsl(
         #version 150 core
@@ -178,15 +224,17 @@ render(GLFWwindow *window) {
           outColor = vec4(c.r, c.r, c.r, 1.0);
         }
     )glsl",
-                                    GL_FRAGMENT_SHADER);
+                                            GL_FRAGMENT_SHADER);
 
     glAttachShader(overlay_context.shader_program, vertex_shader);
     glAttachShader(overlay_context.shader_program, fragment_shader);
     glBindFragDataLocation(overlay_context.shader_program, 0, "outColor");
     glLinkProgram(overlay_context.shader_program);
 
-    GLuint pos_attrib = glGetAttribLocation(overlay_context.shader_program, "position");
-    GLuint coord_attrib = glGetAttribLocation(overlay_context.shader_program, "uv");
+    GLuint pos_attrib =
+        glGetAttribLocation(overlay_context.shader_program, "position");
+    GLuint coord_attrib =
+        glGetAttribLocation(overlay_context.shader_program, "uv");
     int attr_size = sizeof(float) * 4;
     glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE, attr_size, 0);
     glEnableVertexAttribArray(pos_attrib);
@@ -330,17 +378,12 @@ render(GLFWwindow *window) {
         out vec4 outColor;
 
 	uniform bool debug;
-	uniform bool chosen;
 
         void
         main() {
 	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
 	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
 	  outColor = mix(blue, green, Height);
-
-	  if (chosen) {
-	    outColor = vec4(0.0, 0.0, 1.0, 1.0);
-	  }
 
           vec3 lightPos = vec3(0, 500, 400);
           vec3 lightDir = normalize(lightPos - FragPos);
@@ -354,17 +397,18 @@ render(GLFWwindow *window) {
 	  }
         }
     )glsl";
-    const GLuint vertex_shader = compile_shader(new_vertex_source, GL_VERTEX_SHADER);
-    const GLuint fragment_shader = compile_shader(new_fragment_source, GL_FRAGMENT_SHADER);
+    const GLuint vertex_shader =
+        compile_shader(new_vertex_source, GL_VERTEX_SHADER);
+    const GLuint fragment_shader =
+        compile_shader(new_fragment_source, GL_FRAGMENT_SHADER);
 
     glAttachShader(cube_context.shader_program, vertex_shader);
     glAttachShader(cube_context.shader_program, fragment_shader);
     glBindFragDataLocation(cube_context.shader_program, 0, "outColor");
     glLinkProgram(cube_context.shader_program);
 
-    std::pair<const char *, size_t> program_args[] = {
-        {"position", vert_size},
-        {"normal", vert_size}};
+    std::pair<const char *, size_t> program_args[] = {{"position", vert_size},
+                                                      {"normal", vert_size}};
 
     size_t sizeof_attr = 0;
     for (const auto &[name, el_size] : program_args) {
@@ -373,7 +417,8 @@ render(GLFWwindow *window) {
 
     size_t offset = 0;
     for (const auto &[name, el_size] : program_args) {
-      GLuint attr_location = glGetAttribLocation(cube_context.shader_program, name);
+      GLuint attr_location =
+          glGetAttribLocation(cube_context.shader_program, name);
       glEnableVertexAttribArray(attr_location);
       glVertexAttribPointer(attr_location, el_size, GL_FLOAT, GL_FALSE,
                             sizeof_attr, reinterpret_cast<void *>(offset));
@@ -382,7 +427,7 @@ render(GLFWwindow *window) {
   }
 
   //--------------------------------------------------------------------------------
-  // Debug lines
+  // Define debug lines
   {
     glUseProgram(debug_context.shader_program);
     glBindVertexArray(vaos[2]);
@@ -422,7 +467,7 @@ render(GLFWwindow *window) {
               gl_Position = proj * view * trans * vec4(position, 1.0);
             }
 	)glsl",
-                                  GL_VERTEX_SHADER);
+                                          GL_VERTEX_SHADER);
 
     GLuint fragment_shader = compile_shader(R"glsl(
             #version 150 core
@@ -434,16 +479,16 @@ render(GLFWwindow *window) {
               outColor = vec4(inColor, 1.0);
             }
         )glsl",
-                                    GL_FRAGMENT_SHADER);
+                                            GL_FRAGMENT_SHADER);
 
     glAttachShader(debug_context.shader_program, vertex_shader);
     glAttachShader(debug_context.shader_program, fragment_shader);
     glBindFragDataLocation(debug_context.shader_program, 0, "outColorי");
     glLinkProgram(debug_context.shader_program);
-    glUseProgram(debug_context.shader_program);
 
-    glBindVertexArray(vaos[2]);
-    GLuint pos_attrib = glGetAttribLocation(debug_context.shader_program, "position");
+    switch_to_context(&debug_context);
+    GLuint pos_attrib =
+        glGetAttribLocation(debug_context.shader_program, "position");
     int attr_size = sizeof(float) * 3;
     glVertexAttribPointer(pos_attrib, 3, GL_FLOAT, GL_FALSE, attr_size, 0);
     glEnableVertexAttribArray(pos_attrib);
@@ -455,7 +500,6 @@ render(GLFWwindow *window) {
     GLuint uniView = glGetUniformLocation(cube_context.shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_context.shader_program, "proj");
     GLint uniDebug = glGetUniformLocation(cube_context.shader_program, "debug");
-    GLint uniChosen = glGetUniformLocation(cube_context.shader_program, "chosen");
 
     time_point t_start = now();
     time_point t_prev = now();
@@ -616,44 +660,8 @@ render(GLFWwindow *window) {
         ray_normal = normalized(cross(dir, cam_x));
       }
 
-      // Inner draw fucntions
-      auto draw_line = [&](vec3f p1, vec3f p2, vec3f color) {
-	switch_to_context(&debug_context);
+      init_debug_draw(&debug_context, view, proj);
 
-        GLint uniTrans = glGetUniformLocation(debug_context.shader_program, "trans");
-        GLuint uniView = glGetUniformLocation(debug_context.shader_program, "view");
-        GLint uniProj = glGetUniformLocation(debug_context.shader_program, "proj");
-        GLint uniColor = glGetUniformLocation(debug_context.shader_program, "inColor");
-
-        mat4f transD = streach_from_to(p1, p2, 0.01);
-
-        glUniformMatrix4fv(uniTrans, 1, GL_FALSE, transD.elements);
-        glUniformMatrix4fv(uniView, 1, GL_FALSE, view.elements);
-        glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
-        glUniform3f(uniColor, color.x, color.y, color.z);
-
-        glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
-      };
-
-      auto draw_star = [&](vec3f p, float scale, vec3f color) {
-        vec3f adds[3 * 3 * 3 - 1];
-        int idx = 0;
-        for (int i = 0; i < 3; ++i) {
-          for (int j = 0; j < 3; ++j) {
-            for (int k = 0; k < 3; ++k) {
-              float x = (float)(i - 1);
-              float y = (float)(j - 1);
-              float z = (float)(k - 1);
-              if (!(x == 0 && y == 0 && z == 0)) {
-                adds[idx++] = vec3f{x, y, z};
-              }
-            }
-          }
-        }
-        for (vec3f add : adds) {
-          draw_line(p, p + scale * add, color);
-        }
-      };
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -662,16 +670,15 @@ render(GLFWwindow *window) {
 
       float w_pix = 1.0F / terrain_width;
 
-
       // Define terrain
-      for(int i = 0 ; i < terrain_width * terrain_width; ++i ){
-	      terrain_vals[i] = 0;
+      for (int i = 0; i < terrain_width * terrain_width; ++i) {
+        terrain_vals[i] = 0;
       }
       int mirror_row = (int)(0.90 * terrain_width);
 
       int hero_row = 10;
       int hero_col = 20;
-      //mirror_row = terrain_width;
+      // mirror_row = terrain_width;
       for (int row = 0; row < mirror_row; ++row) {
         for (int col = 0; col < terrain_width; ++col) {
           float acc_val = 0;
@@ -710,11 +717,11 @@ render(GLFWwindow *window) {
               }
             }
           }
-	  if ((pow(hero_row - row, 2) + pow(hero_col - col, 2)) >= 25) {
-          terrain_vals[row * terrain_width + col] = acc_val;
-	  } else {
-          terrain_vals[row * terrain_width + col] = 0.4;
-	  }
+          if ((pow(hero_row - row, 2) + pow(hero_col - col, 2)) >= 25) {
+            terrain_vals[row * terrain_width + col] = acc_val;
+          } else {
+            terrain_vals[row * terrain_width + col] = 0.4;
+          }
         }
       }
 
@@ -723,15 +730,10 @@ render(GLFWwindow *window) {
       }
 
       glEnable(GL_DEPTH_TEST);
-      glDepthRange(0, 0.01); // For overlay drawings
-      {
-        // Here comes overlay drawings;
-      }
 
       // Find chosen terrain box
 
       // Mouse choose box
-      glDepthRange(0.01, 1.0);
       int chosen_row = -1;
       int chosen_col = -1;
       float max_score = -1;
@@ -752,7 +754,8 @@ render(GLFWwindow *window) {
           score = powf(score, 500);
 
           if (debug_overlay) {
-            draw_line(pppos, pppos + vec3f{0, score, 0}, vec3f{0.8, 0.9, 0.6});
+            draw_line(&debug_context, pppos, pppos + vec3f{0, score, 0},
+                      vec3f{0.8, 0.9, 0.6});
           }
         }
       }
@@ -764,9 +767,8 @@ render(GLFWwindow *window) {
           float col_norm = (float)col / terrain_width;
           vec3f pppos{row_norm - 0.5F, 0, col_norm - 0.5F};
           pppos = scale_mat * pppos;
-	  vec3f addy{0, 2, 0};
-	  draw_line(pppos, pppos + addy, vec3f{1, 0, 0});
-
+          vec3f addy{0, 2, 0};
+          draw_line(&debug_context, pppos, pppos + addy, vec3f{1, 0, 0});
         }
       }
 
@@ -775,9 +777,10 @@ render(GLFWwindow *window) {
         float row_norm = (float)hero_row / terrain_width;
         float col_norm = (float)hero_col / terrain_width;
         vec3f pppos{row_norm - 0.5F, 0.3, col_norm - 0.5F};
-          pppos = scale_mat * pppos;
-	draw_star(pppos, 0.1, vec3f{1, 0.5, 0.5});
-	draw_star(pppos + vec3f{0, -0.3, 0}, 0.1, vec3f{1, 0.5, 0.5});
+        pppos = scale_mat * pppos;
+        draw_star(&debug_context, pppos, 0.1, vec3f{1, 0.5, 0.5});
+        draw_star(&debug_context, pppos + vec3f{0, -0.3, 0}, 0.1,
+                  vec3f{1, 0.5, 0.5});
       }
       // Draw lines for demo
       {
@@ -787,8 +790,9 @@ render(GLFWwindow *window) {
         for (int i = 0; i < n_pts; ++i) {
           float t = 2 * pi * (float)i / (float)n_pts;
           vec3f c_dir = vec3f{cosf(t), 0, sinf(t)};
-          draw_line(p0, p0 + radius * c_dir, vec3f{1, 1, 1});
-          draw_line(vec3f{0, 0, 0}, radius * c_dir, vec3f{0, 0, 0});
+          draw_line(&debug_context, p0, p0 + radius * c_dir, vec3f{1, 1, 1});
+          draw_line(&debug_context, vec3f{0, 0, 0}, radius * c_dir,
+                    vec3f{0, 0, 0});
           int m = 2;
 
           vec3f star_pos = p0 + addy + 0.7 * radius * c_dir;
@@ -807,9 +811,9 @@ render(GLFWwindow *window) {
           if (!collected[i]) {
             vec3f star_color =
                 collected[i] ? vec3f{0.7, 0.7, 0.7} : vec3f{0.8, 0.8, 0.0};
-            draw_star(star_pos, 0.03, star_color);
+            draw_star(&debug_context, star_pos, 0.03, star_color);
             star_pos.y = 0;
-            draw_star(star_pos, 0.1, vec3f{0, 0, 0});
+            draw_star(&debug_context, star_pos, 0.1, vec3f{0, 0, 0});
           }
         }
       }
@@ -854,7 +858,6 @@ render(GLFWwindow *window) {
               }
             }
           }
-          // glUniform1i(uniChosen, is_chosen);
 
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
         }
@@ -888,13 +891,13 @@ render(GLFWwindow *window) {
 
       // Draw overlay texture
       if (overlay_texture) {
-	      for(int i = 0; i < terrain_width * terrain_width; ++i) {
-		      terrain_vals[i] += 0.5;
-		      terrain_vals[i] /= 3;
-	      }
+        for (int i = 0; i < terrain_width * terrain_width; ++i) {
+          terrain_vals[i] += 0.5;
+          terrain_vals[i] /= 3;
+        }
 
         glDisable(GL_DEPTH_TEST);
-	switch_to_context(&overlay_context);
+        switch_to_context(&overlay_context);
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_width, 0,
                      GL_RED, GL_FLOAT, terrain_vals);
