@@ -344,12 +344,12 @@ render(GLFWwindow *window) {
 	    outColor = vec4(0.0, 0.0, 1.0, 1.0);
 	  }
 
-          vec3 lightPos = vec3(30, 500, 10);
+          vec3 lightPos = vec3(0, 500, 400);
           vec3 lightDir = normalize(lightPos - FragPos);
           vec3 norm = normalize(Normal);
           float diff = max(dot(norm, lightDir), 0.0);
 
-          outColor *= min(0.3 + diff, 1.0);
+          outColor *= min(0.1 + diff, 1.0);
 
 	  if (debug) {
 	    outColor *= 0.5;
@@ -385,30 +385,6 @@ render(GLFWwindow *window) {
   }
 
   //--------------------------------------------------------------------------------
-  // Set cube texture
-  GLuint terrain_texture;
-  glGenTextures(1, &terrain_texture);
-  {
-
-    size_t width = 2;
-    size_t height = 2;
-    // clang-format off
-    uint8_t pixels[12] = {
-	    100  , 25, 10,     100, 100, 44,
-	    100, 30  , 10,     120, 255  , 10
-    };
-    // clang-format on
-
-    glBindTexture(GL_TEXTURE_2D, terrain_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, pixels);
-
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  };
   // Debug lines
   {
     glUseProgram(debug_line_program);
@@ -593,7 +569,6 @@ render(GLFWwindow *window) {
 
       //=========================================
 
-      glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
 
       time_point t_now = now();
@@ -844,7 +819,6 @@ render(GLFWwindow *window) {
       }
 
       // Draw terrain
-      glBindTexture(GL_TEXTURE_2D, terrain_texture);
       glUseProgram(cube_shader_program);
       glBindVertexArray(vaos[1]);
       for (int row = 0; row < terrain_width; ++row) {
