@@ -4,6 +4,7 @@
 
 #include "math.hpp"
 
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -130,6 +131,31 @@ draw_star(DrawContext *debug_context, vec3f p, float scale, vec3f color) {
     draw_line(debug_context, p, p + scale * add, color);
   }
 };
+
+struct UserInput {
+  KeyState mouse_state = KeyState::KeyUp;
+  int keys[3] = {GLFW_KEY_G, GLFW_KEY_R, GLFW_KEY_O};
+  KeyState key_state[3] = {KeyState::KeyUp, KeyState::KeyUp, KeyState::KeyUp};
+};
+
+void
+update_user_input(UserInput *user_input, GLFWwindow *window) {
+  for (int i = 0; i < std::size(user_input->keys); ++i) {
+    user_input->key_state[i] = update_kstate(
+        user_input->key_state[i], glfwGetKey(window, user_input->keys[i]));
+  }
+}
+
+KeyState
+key_state(UserInput *user_input, int key) {
+  for (int i = 0; i < std::size(user_input->keys); ++i) {
+    if (user_input->keys[i] == key) {
+      return user_input->key_state[i];
+    }
+  }
+  assert(false);
+  return KeyState::KeyUp;
+}
 
 void
 render(GLFWwindow *window) {
@@ -514,9 +540,7 @@ render(GLFWwindow *window) {
 
     bool debug_overlay = false;
     bool overlay_texture = false;
-    KeyState g_state = KeyState::KeyUp;
-    KeyState r_state = KeyState::KeyUp;
-    KeyState o_state = KeyState::KeyUp;
+    UserInput user_input;
     KeyState mouse_state = KeyState::KeyUp;
 
     WaveState wave_state = WaveState::Simulate;
@@ -543,43 +567,43 @@ render(GLFWwindow *window) {
       mouse_x = mouse_x / (screen_width * 0.5F) - 1.0F;
       mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
 
-      g_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_G));
-      o_state = update_kstate(o_state, glfwGetKey(window, GLFW_KEY_O));
-      r_state = update_kstate(r_state, glfwGetKey(window, GLFW_KEY_R));
+      update_user_input(&user_input, window);
 
       mouse_state = update_kstate(
           mouse_state, glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1));
 
-      if (g_state == KeyState::KeyPressed) {
+      if (key_state(&user_input, GLFW_KEY_G) == KeyState::KeyPressed) {
         debug_overlay = !debug_overlay;
       }
 
-      if (o_state == KeyState::KeyPressed) {
+      if (key_state(&user_input, GLFW_KEY_O) == KeyState::KeyPressed) {
         overlay_texture = !overlay_texture;
       }
 
-      bool add_center = (mouse_state == KeyState::KeyPressed);
-      if (r_state == KeyState::KeyPressed) {
+      if (key_state(&user_input, GLFW_KEY_R) == KeyState::KeyPressed) {
         n_waves = 0;
         for (int i = 0; i < n_pts; ++i) {
           collected[i] = false;
         }
       }
 
-      if (wave_state == WaveState::Add) {
-        wave_state = WaveState::Adding;
-      }
-      if (wave_state == WaveState::DoneAdding) {
-        wave_state = WaveState::Simulate;
-      }
-      if (mouse_state == KeyState::KeyPressed ||
-          mouse_state == KeyState::KeyDown) {
-        if (wave_state == WaveState::Simulate) {
-          wave_state = WaveState::Add;
+      // Wave control
+      {
+        if (wave_state == WaveState::Add) {
+          wave_state = WaveState::Adding;
         }
-      } else {
-        if (wave_state == WaveState::Adding) {
-          wave_state = WaveState::DoneAdding;
+        if (wave_state == WaveState::DoneAdding) {
+          wave_state = WaveState::Simulate;
+        }
+        if (mouse_state == KeyState::KeyPressed ||
+            mouse_state == KeyState::KeyDown) {
+          if (wave_state == WaveState::Simulate) {
+            wave_state = WaveState::Add;
+          }
+        } else {
+          if (wave_state == WaveState::Adding) {
+            wave_state = WaveState::DoneAdding;
+          }
         }
       }
 
