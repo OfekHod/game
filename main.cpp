@@ -89,6 +89,7 @@ render(GLFWwindow *window) {
   glGenTextures(1, &overlay_texture);
 
   // Define Overlay texture
+  float ovelay_size = 0.7F;
   {
     glBindTexture(GL_TEXTURE_2D, overlay_texture);
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -100,7 +101,7 @@ render(GLFWwindow *window) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // clang-format off
-    float s = 0.7;
+    float s = ovelay_size;
     float attrs[] = {
 	//verts        //tex coord
         -1.0F , 1.0F ,     0.0F, 1.0F,
@@ -135,11 +136,16 @@ render(GLFWwindow *window) {
         in vec2 position;
         in vec2 uv;
 
+        uniform vec2 mouse;
+
         out vec2 Texcoord;
         void
-        main() {
-          gl_Position = vec4(position, 0.0, 1.0);
-          Texcoord = uv;
+        main() {  
+        float d = distance(mouse, position);
+        vec2 sum = vec2(position.x, position.y);
+        sum = position + mouse;
+         gl_Position = vec4(sum, 0.0, 1.0);
+         Texcoord = uv;
         }
     )glsl",
                                   GL_VERTEX_SHADER);
@@ -204,7 +210,7 @@ render(GLFWwindow *window) {
   vec2f tex_c[4] {
       	{0.0F, 0.0F},
       	{0.0F, 1.0F},
-	{1.0F, 1.0F},
+	    {1.0F, 1.0F},
       	{1.0F, 0.0F}
   };
 
@@ -503,11 +509,17 @@ render(GLFWwindow *window) {
     srand(time(nullptr));
 
     // Collected demo params
-    int n_pts = 15;
+    const int n_pts = 15;
     bool collected[n_pts];
     for (int i = 0; i < n_pts; ++i) {
       collected[i] = false;
     }
+
+    float centerOverlayPosition = (2.0F - ovelay_size) / 2.0F;
+    float lastOverlayCenter[2] = {-centerOverlayPosition, centerOverlayPosition};
+    float dragging = false;
+    float deltaX = 0.0F;
+    float deltaY = 0.0F;
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -517,6 +529,8 @@ render(GLFWwindow *window) {
       glfwGetCursorPos(window, &mouse_x, &mouse_y);
       mouse_x = mouse_x / (screen_width * 0.5F) - 1.0F;
       mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
+
+      
 
       g_state = update_kstate(g_state, glfwGetKey(window, GLFW_KEY_G));
       o_state = update_kstate(o_state, glfwGetKey(window, GLFW_KEY_O));
@@ -921,7 +935,27 @@ render(GLFWwindow *window) {
         glBindTexture(GL_TEXTURE_2D, overlay_texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, terrain_width, terrain_width, 0,
                      GL_RED, GL_FLOAT, terrain_vals);
+        auto mousedId = glGetUniformLocation(overlay_shader_program, "mouse");
+        
         glUseProgram(overlay_shader_program);
+        if (mouse_state == KeyState::KeyDown) {
+          float delta = (2.0F - ovelay_size) / 2.0F;
+          if (!dragging) {
+            deltaX = mouse_x - lastOverlayCenter[0];
+            deltaY = -mouse_y - lastOverlayCenter[1];
+          }
+         
+          if ((fabs(deltaX) <= delta && fabs(deltaY) <= delta)) {
+            dragging = true;
+            float mouse[2] = {mouse_x + delta - deltaX, -mouse_y - delta - deltaY};
+            glUniform2fv(mousedId, 1, &mouse[0]);
+            lastOverlayCenter[0] =  mouse_x - deltaX;
+            lastOverlayCenter[1] = - mouse_y - deltaY;
+          }
+        }
+        if (mouse_state == KeyState::KeyUp) {
+          dragging = false;
+        }
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
       }
 
