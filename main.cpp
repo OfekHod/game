@@ -390,46 +390,48 @@ render(GLFWwindow *window) {
           gl_Position = proj * view * trans * vec4(position, 1.0);
           FragPos = vec3(trans * vec4(position, 1.0));
           Normal = mat3(trans) * normal;
-	  Height = 0.2 + pos_t.y * 2.0;
+	  Height = pos_t.y;
         }
     )glsl";
 
     const char *new_fragment_source = R"glsl(
         #version 150 core
 
-        in vec3 Normal;
-        in vec3 FragPos;
+	in vec3 Normal;
+	in vec3 FragPos;
 	in float Height;
 
-        out vec4 outColor;
+	out vec4 outColor;
 
 	uniform bool debug;
 
-        void
-        main() {
+	void
+	main() {
+	  vec4 black = vec4(0.2, 0.1, 0.1, 1.0);
 	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
 	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
-	  vec4 red = vec4(1.0, 1.0, 0.0, 1.0);
+	  vec4 red = vec4(1.0, 0.4, 0.4, 1.0);
 
-          float th = 1.2;
-	  if ( Height <= th ) {
-	  outColor = mix(blue, green, Height / th);
+	  float th = 0.5;
+	  if (Height < 0) {
+	    outColor = mix(blue, black, -Height * 10);
+	  } else if (Height <= th) {
+	    outColor = mix(blue, green, Height / th);
 	  } else {
-	  outColor = mix(green, red,  (Height - th) * 2);
+	    outColor = mix(green, red, (Height - th) / th);
 	  }
 
+	  vec3 lightPos = vec3(0, 500, 400);
+	  vec3 lightDir = normalize(lightPos - FragPos);
+	  vec3 norm = normalize(Normal);
+	  float diff = max(dot(norm, lightDir), 0.0);
 
-          vec3 lightPos = vec3(0, 500, 400);
-          vec3 lightDir = normalize(lightPos - FragPos);
-          vec3 norm = normalize(Normal);
-          float diff = max(dot(norm, lightDir), 0.0);
-
-          outColor *= min(0.1 + diff, 1.0);
+	  outColor *= min(0.1 + diff, 1.0);
 
 	  if (debug) {
 	    outColor *= 0.5;
 	  }
-        }
+	}
     )glsl";
     const GLuint vertex_shader =
         compile_shader(new_vertex_source, GL_VERTEX_SHADER);
@@ -733,15 +735,17 @@ render(GLFWwindow *window) {
               float repititions = 4;
 
               float wave_place = r * pi * repititions - tt;
+	      
 
               if (-0.5 * pi <= wave_place && wave_place <= 1.5 * pi) {
 
                 float cos_w = cosf(wave_place);
+
                 if (wave_place > pi || wave_place < 0) {
                   cos_w = powf(cos_w, 3);
                 }
                 if (cos_w < 0) {
-                  cos_w /= 3;
+                  cos_w /= 6;
                 }
 
                 float val_f = wave.size * (cos_w);
