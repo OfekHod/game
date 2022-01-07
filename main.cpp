@@ -409,7 +409,15 @@ render(GLFWwindow *window) {
         main() {
 	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
 	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
-	  outColor = mix(blue, green, Height);
+	  vec4 red = vec4(1.0, 1.0, 0.0, 1.0);
+
+          float th = 1.2;
+	  if ( Height <= th ) {
+	  outColor = mix(blue, green, Height / th);
+	  } else {
+	  outColor = mix(green, red,  (Height - th) * 2);
+	  }
+
 
           vec3 lightPos = vec3(0, 500, 400);
           vec3 lightDir = normalize(lightPos - FragPos);
@@ -744,7 +752,7 @@ render(GLFWwindow *window) {
           if ((pow(hero_row - row, 2) + pow(hero_col - col, 2)) >= 25) {
             terrain_vals[row * terrain_width + col] = acc_val;
           } else {
-            terrain_vals[row * terrain_width + col] = 0.4;
+            terrain_vals[row * terrain_width + col] = 1;
           }
         }
       }
