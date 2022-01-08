@@ -35,5 +35,4 @@ FOREACH(exec_name IN ITEMS game load_bmp load_obj)
   ENDIF()
 
   target_link_libraries(${exec_name} ${OPENGL_LIBRARIES} ${GLEWLIBS} glfw)
-  target_compile_options(${exec_name} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 ENDFOREACH()
