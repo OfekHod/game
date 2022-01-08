@@ -9,6 +9,12 @@ Load OpenGL though glfw and use fragment/vertex shaders.
 * glfw - Handles opening a window and getting input, we will leave that for now
 * glm - A math library for OpenGL. # TODO: get rid of it
 
+# Mac Prerequisites
+Install glew:
+```
+brew install glew
+```
+
 # Build and run (hopefully :))
 ```
 mkdir build
