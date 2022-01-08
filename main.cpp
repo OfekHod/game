@@ -140,7 +140,7 @@ struct UserInput {
 
 void
 update_user_input(UserInput *user_input, GLFWwindow *window) {
-  for (int i = 0; i < std::size(user_input->keys); ++i) {
+  for (size_t i = 0; i < std::size(user_input->keys); ++i) {
     user_input->key_state[i] = update_kstate(
         user_input->key_state[i], glfwGetKey(window, user_input->keys[i]));
   }
@@ -148,7 +148,7 @@ update_user_input(UserInput *user_input, GLFWwindow *window) {
 
 KeyState
 key_state(UserInput *user_input, int key) {
-  for (int i = 0; i < std::size(user_input->keys); ++i) {
+  for (size_t i = 0; i < std::size(user_input->keys); ++i) {
     if (user_input->keys[i] == key) {
       return user_input->key_state[i];
     }
@@ -300,7 +300,6 @@ render(GLFWwindow *window) {
   VertsContent verts_content;
   constexpr size_t n_verts = 6 * 4;
   vec3f c_verts[n_verts];
-  vec2f c_coords[n_verts];
   vec3f c_normals[n_verts];
 
   verts_content.size = n_verts;
@@ -311,7 +310,6 @@ render(GLFWwindow *window) {
   {
     int ver_out = 0;
     int el_out = 0;
-    int rect_num = 0;
     for (auto &[rect, normal] : rects) {
       int a = ver_out;
       for (int j = 0; j < 4; j++) {
@@ -474,7 +472,7 @@ render(GLFWwindow *window) {
 
     {
       float attrs[n_verts * 3];
-      for (int i = 0; i < n_verts; ++i) {
+      for (size_t i = 0; i < n_verts; ++i) {
         attrs[i * 3 + 0] = verts_content.verts[i].x;
         attrs[i * 3 + 1] = verts_content.verts[i].y;
         attrs[i * 3 + 2] = verts_content.verts[i].z;
@@ -537,10 +535,8 @@ render(GLFWwindow *window) {
     GLint uniProj = glGetUniformLocation(cube_context.shader_program, "proj");
     GLint uniDebug = glGetUniformLocation(cube_context.shader_program, "debug");
 
-    time_point t_start = now();
     time_point t_prev = now();
 
-    float sign = 1;
     float scale_f = 5.0F;
     float rot_f = 0.1;
 
@@ -562,7 +558,7 @@ render(GLFWwindow *window) {
     srand(time(nullptr));
 
     // Star collection demo params
-    int n_pts = 15;
+    constexpr int n_pts = 15;
     bool collected[n_pts];
     for (int i = 0; i < n_pts; ++i) {
       collected[i] = false;
@@ -647,7 +643,6 @@ render(GLFWwindow *window) {
       glUseProgram(cube_context.shader_program);
 
       time_point t_now = now();
-      float time = time_between(t_start, t_now);
       float time_delta = time_between(t_prev, t_now);
       t_prev = t_now;
 
@@ -829,7 +824,6 @@ render(GLFWwindow *window) {
           draw_line(&debug_context, p0, p0 + radius * c_dir, vec3f{1, 1, 1});
           draw_line(&debug_context, vec3f{0, 0, 0}, radius * c_dir,
                     vec3f{0, 0, 0});
-          int m = 2;
 
           vec3f star_pos = p0 + addy + 0.7 * radius * c_dir;
 
@@ -882,26 +876,12 @@ render(GLFWwindow *window) {
               wave_base_height = acc_val;
             }
           }
-          bool is_chosen = false;
-          {
-            int s = 2;
-            for (int add_row = -s; add_row <= s; ++add_row) {
-              for (int add_col = -s; add_col <= s; ++add_col) {
-                if ((row + add_row) == chosen_row &&
-                    (col + add_col) == chosen_col) {
-                  is_chosen = true;
-                }
-              }
-            }
-          }
 
           glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
         }
       }
       if (wave_state == WaveState::Adding) {
         Wave *last = &waves[n_waves - 1];
-        int row = wave_row;
-        int col = wave_col;
         float row_norm = (float)wave_row / terrain_width;
         float col_norm = (float)wave_col / terrain_width;
 
@@ -980,7 +960,7 @@ open_window(int width, int height) {
 }
 
 int
-main(int argc, char **argv) {
+main() {
 
   GLFWwindow *window = open_window(screen_width, screen_height);
   render(window);
