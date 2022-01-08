@@ -30,7 +30,6 @@ time_between(time_point start, time_point end) {
 
 enum class KeyState { KeyUp, KeyDown, KeyPressed };
 
-
 GLuint
 compile_shader(const char *source, GLenum type) {
   GLuint gl_ptr = glCreateShader(type);
@@ -59,33 +58,24 @@ struct VertsContent {
 constexpr int screen_width = 800;
 constexpr int screen_height = 800;
 
-
 struct DrawContext {
   GLuint vao;
   GLuint shader_program;
 };
 
 void
-switch_to_context(DrawContext *ctx) {
-  glBindVertexArray(ctx->vao);
-  glUseProgram(ctx->shader_program);
-}
-
-void
 render(GLFWwindow *window) {
 
   DrawContext cube_context;
-
   glGenVertexArrays(1, &(cube_context.vao));
-
   cube_context.shader_program = glCreateProgram();
-
-
-
   glBindVertexArray(cube_context.vao);
 
   //********************************************************************************
   // Cube Def
+
+  // <<<========= Here we should define loaded OBJ file
+  //
   // clang-format off
   vec3f cube_verts[8] = {
       	{-0.5F,  0.5F, -0.5F},
@@ -189,7 +179,6 @@ render(GLFWwindow *window) {
 
         out vec3 FragPos;
         out vec3 Normal;
-	out float Height;
 
         uniform mat4 trans;
         uniform mat4 view;
@@ -201,7 +190,6 @@ render(GLFWwindow *window) {
           gl_Position = proj * view * trans * vec4(position, 1.0);
           FragPos = vec3(trans * vec4(position, 1.0));
           Normal = mat3(trans) * normal;
-	  Height = pos_t.y;
         }
     )glsl";
 
@@ -210,11 +198,8 @@ render(GLFWwindow *window) {
 
 	in vec3 Normal;
 	in vec3 FragPos;
-	in float Height;
 
 	out vec4 outColor;
-
-	uniform bool debug;
 
 	void
 	main() {
@@ -222,15 +207,8 @@ render(GLFWwindow *window) {
 	  vec4 green = vec4(0.0, 1.0, 0.0, 1.0);
 	  vec4 blue = vec4(0.0, 0.0, 1.0, 1.0);
 	  vec4 red = vec4(1.0, 0.4, 0.4, 1.0);
-
-	  float th = 0.5;
-	  if (Height < 0) {
-	    outColor = mix(blue, black, -Height * 20);
-	  } else if (Height <= th) {
-	    outColor = mix(blue, green, Height / th);
-	  } else {
-	    outColor = mix(green, red, (Height - th) / th);
-	  }
+          
+	  outColor = blue;
 
 	  vec3 lightPos = vec3(0, 500, 400);
 	  vec3 lightDir = normalize(lightPos - FragPos);
@@ -238,10 +216,6 @@ render(GLFWwindow *window) {
 	  float diff = max(dot(norm, lightDir), 0.0);
 
 	  outColor *= min(0.1 + diff, 1.0);
-
-	  if (debug) {
-	    outColor *= 0.5;
-	  }
 	}
     )glsl";
     const GLuint vertex_shader =
@@ -276,22 +250,14 @@ render(GLFWwindow *window) {
   //--------------------------------------------------------------------------------
 
   {
-    size_t el_size = std::size(cube_elements);
     GLint uniTrans = glGetUniformLocation(cube_context.shader_program, "trans");
     GLuint uniView = glGetUniformLocation(cube_context.shader_program, "view");
     GLint uniProj = glGetUniformLocation(cube_context.shader_program, "proj");
-    GLint uniDebug = glGetUniformLocation(cube_context.shader_program, "debug");
 
     float scale_f = 5.0F;
     float rot_f = 0.1;
 
-    int terrain_width = 120;
-    float *terrain_vals =
-        (float *)malloc(sizeof(float *) * terrain_width * terrain_width);
 
-    bool debug_overlay = false;
-
-    srand(time(nullptr));
 
     while (!glfwWindowShouldClose(window)) {
 
@@ -301,7 +267,6 @@ render(GLFWwindow *window) {
       glfwGetCursorPos(window, &mouse_x, &mouse_y);
       mouse_x = mouse_x / (screen_width * 0.5F) - 1.0F;
       mouse_y = mouse_y / (screen_height * 0.5F) - 1.0F;
-
 
       // Zoom in out
       {
@@ -332,7 +297,6 @@ render(GLFWwindow *window) {
 
       glUseProgram(cube_context.shader_program);
 
-
       //--------------------------------------------------
       // Camera setup
       //--------------------------------------------------
@@ -357,25 +321,6 @@ render(GLFWwindow *window) {
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, proj.elements);
       };
 
-      // Camera ray
-      vec3f dir;
-      vec3f ray_normal;
-      {
-        mat4f view2 = copy(&view);
-        view2.elements[12] = 0;
-        view2.elements[13] = 0;
-        view2.elements[14] = 0;
-        mat4f invVP = inverse(proj * view2);
-        vec3f screen_pos{(float)mouse_x, -(float)mouse_y, 1.0F};
-        dir = invVP * screen_pos;
-        dir = normalized(dir);
-
-        vec3f cam_x = {view2.elements[4 * 0 + 0], view2.elements[4 * 1 + 0],
-                       view2.elements[4 * 2 + 0]};
-
-        ray_normal = normalized(cross(dir, cam_x));
-      }
-
 
       glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -383,64 +328,15 @@ render(GLFWwindow *window) {
       float scale = 6.0F;
       mat4f scale_mat = diagonal(scale, 1.0F, scale, 1);
 
-      float w_pix = 1.0F / terrain_width;
-
-      // Define terrain
-      for (int i = 0; i < terrain_width * terrain_width; ++i) {
-        terrain_vals[i] = 0;
-      }
-      int mirror_row = (int)(0.90 * terrain_width);
-
-      // mirror_row = terrain_width;
-      for (int row = 0; row < mirror_row; ++row) {
-        for (int col = 0; col < terrain_width; ++col) {
-            terrain_vals[row * terrain_width + col] = 1;
-        }
-      }
-
       glEnable(GL_DEPTH_TEST);
 
-      // Find chosen terrain box
-
-      // Mouse choose box
-      float max_score = -1;
-      for (int row = 0; row < terrain_width; ++row) {
-        for (int col = 0; col < terrain_width; ++col) {
-          float row_norm = (float)row / terrain_width;
-          float col_norm = (float)col / terrain_width;
-          float acc_val = terrain_vals[row * terrain_width + col];
-          vec3f pppos{row_norm - 0.5F, acc_val, col_norm - 0.5F};
-          pppos = scale_mat * pppos;
-          vec3f cam2pos = normalized(pppos - cam_pos);
-          float score = dot(cam2pos, dir);
-          if (score > max_score) {
-            max_score = score;
-          }
-          score = powf(score, 500);
-
-        }
-      }
-
       // Draw terrain
-      switch_to_context(&cube_context);
-      for (int row = 0; row < terrain_width; ++row) {
-        for (int col = 0; col < terrain_width; ++col) {
-          float row_norm = (float)row / terrain_width;
-          float col_norm = (float)col / terrain_width;
-          float acc_val = terrain_vals[row * terrain_width + col];
-          mat4f trans = diagonal(w_pix, 2, w_pix, 1);
-          trans.elements[12] = row_norm - 0.5;
-          trans.elements[13] = acc_val - 1;
-          trans.elements[14] = col_norm - 0.5;
+      glBindVertexArray(cube_context.vao);
+      glUseProgram(cube_context.shader_program);
 
-          trans = scale_mat * trans;
-          glUniformMatrix4fv(uniTrans, 1, GL_FALSE, trans.elements);
-          glUniform1i(uniDebug, debug_overlay);
+      glUniformMatrix4fv(uniTrans, 1, GL_FALSE, scale_mat.elements);
 
-
-          glDrawElements(GL_TRIANGLES, el_size, GL_UNSIGNED_INT, 0);
-        }
-      }
+      glDrawElements(GL_TRIANGLES, std::size(cube_elements), GL_UNSIGNED_INT, 0);
 
       glfwSwapBuffers(window);
       glfwPollEvents();
