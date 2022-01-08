@@ -233,7 +233,6 @@ inverse(mat4f mat) {
   float m21 = m[2 + 4 * 1];
   float m22 = m[2 + 4 * 2];
   float m23 = m[2 + 4 * 3];
-  float m24 = m[2 + 4 * 4];
   float m30 = m[3 + 4 * 0];
   float m31 = m[3 + 4 * 1];
   float m32 = m[3 + 4 * 2];
@@ -251,7 +250,6 @@ inverse(mat4f mat) {
   float *inv_m21 = &inv_m[2 + 4 * 1];
   float *inv_m22 = &inv_m[2 + 4 * 2];
   float *inv_m23 = &inv_m[2 + 4 * 3];
-  float *inv_m24 = &inv_m[2 + 4 * 4];
   float *inv_m30 = &inv_m[3 + 4 * 0];
   float *inv_m31 = &inv_m[3 + 4 * 1];
   float *inv_m32 = &inv_m[3 + 4 * 2];
